@@ -1,6 +1,6 @@
 from aiogram.enums import ParseMode
 
-from app.bot.app import bot
+from app.bot.bot_instance import bot
 from app.logger import logger
 from app.services.vpn_service import vpn_service
 
