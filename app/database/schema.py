@@ -42,13 +42,40 @@ def create_tables():
     CREATE TABLE IF NOT EXISTS payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-        user_id INTEGER NOT NULL,
-        amount REAL NOT NULL,
-        currency TEXT NOT NULL,
-        status TEXT NOT NULL,
-        provider TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
 
-        FOREIGN KEY(user_id) REFERENCES users(id)
+    user_id INTEGER NOT NULL,
+
+
+    protocol TEXT NOT NULL,
+
+
+    subscription_days INTEGER NOT NULL,
+
+
+    amount REAL NOT NULL,
+
+
+    currency TEXT NOT NULL,
+
+
+    status TEXT NOT NULL,
+
+
+    provider TEXT NOT NULL,
+
+
+    provider_payment_id TEXT UNIQUE,
+
+
+    confirmation_url TEXT,
+
+
+    created_at INTEGER NOT NULL,
+
+
+    paid_at INTEGER,
+
+
+    FOREIGN KEY(user_id) REFERENCES users(id)
     )
     """)

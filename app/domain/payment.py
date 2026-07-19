@@ -9,6 +9,8 @@ class Payment:
 
     user_id: int
 
+    protocol: str
+
     subscription_days: int
 
     amount: float

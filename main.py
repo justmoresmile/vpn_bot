@@ -1,4 +1,7 @@
+import app.bootstrap
+
 import asyncio
+
 
 import uvicorn
 

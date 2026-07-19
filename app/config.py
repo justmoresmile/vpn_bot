@@ -28,6 +28,11 @@ class Settings:
     # Database
     database_path: str
 
+    # YooKassa
+    yookassa_shop_id: str
+    yookassa_secret_key: str
+    payment_return_url: str
+
 
 def require_env(name: str) -> str:
     value = os.getenv(name)
@@ -46,12 +51,6 @@ settings = Settings(
 
     admin_id=int(
         os.getenv("ADMIN_ID", "0")
-    ),
-
-    # Database
-    database_path=os.getenv(
-    "DATABASE_PATH",
-    "vpn.db",
     ),
 
     # 3x-ui
@@ -80,5 +79,24 @@ settings = Settings(
             "VPN_VLESS_INBOUND",
             "1",
         )
+    ),
+
+    # Database
+    database_path=os.getenv(
+        "DATABASE_PATH",
+        "vpn.db",
+    ),
+
+    # YooKassa
+    yookassa_shop_id=require_env(
+        "YOOKASSA_SHOP_ID"
+    ),
+
+    yookassa_secret_key=require_env(
+        "YOOKASSA_SECRET_KEY"
+    ),
+
+    payment_return_url=require_env(
+        "PAYMENT_RETURN_URL"
     ),
 )

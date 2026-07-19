@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from app.domain.enums import SubscriptionStatus
+from app.domain.enums.subscription_status import SubscriptionStatus
 
 
 @dataclass
