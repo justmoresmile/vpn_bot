@@ -11,9 +11,6 @@ from app.services.sync_service import sync_service
 from app.tasks.subscription_task import subscription_task
 
 
-create_tables()
-
-
 bot = Bot(token=settings.bot_token)
 
 dp = Dispatcher()
@@ -21,7 +18,6 @@ dp.include_router(router)
 
 
 async def main():
-
     logger.info("Создание базы данных...")
 
     create_tables()
@@ -30,8 +26,6 @@ async def main():
         "База данных успешно создана"
     )
 
-
-    # Синхронизация с 3x-ui перед запуском
     logger.info(
         "Синхронизация подписок с панелью..."
     )
@@ -42,7 +36,6 @@ async def main():
         "Синхронизация завершена"
     )
 
-
     asyncio.create_task(
         subscription_task()
     )
@@ -51,11 +44,9 @@ async def main():
         "SubscriptionChecker запущен"
     )
 
-
     logger.success(
         "Бот успешно запущен"
     )
-
 
     await dp.start_polling(bot)
 

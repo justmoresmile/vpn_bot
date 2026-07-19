@@ -12,9 +12,6 @@ class Settings:
     bot_token: str
     admin_id: int
 
-    # Database
-    db_name: str
-
     # 3x-ui
     api_url: str
     api_token: str
@@ -25,8 +22,11 @@ class Settings:
     vpn_country: str
     vpn_wg_dns: str
 
-    # Default inbound IDs
+    # Inbounds
     vpn_vless_inbound: int
+
+    # Database
+    database_path: str
 
 
 def require_env(name: str) -> str:
@@ -49,9 +49,9 @@ settings = Settings(
     ),
 
     # Database
-    db_name=os.getenv(
-        "DB_NAME",
-        "vpn.db",
+    database_path=os.getenv(
+    "DATABASE_PATH",
+    "vpn.db",
     ),
 
     # 3x-ui
