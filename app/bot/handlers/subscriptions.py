@@ -3,17 +3,19 @@ from datetime import datetime
 from aiogram import F, Router
 from aiogram.types import Message
 
-from app.bot.keyboards.subscription_select import subscription_select_menu
 from app.repositories.user_repository import users_repo
 from app.services.vpn_service import vpn_service
 from app.domain.legacy_enums import SubscriptionStatus
+from app.bot.keyboards.subscription_menu import (
+    subscription_actions_menu,
+)
 
 
 router = Router()
 
 
-@router.message(F.text == "📊 Мои подписки")
-async def subscriptions(message: Message):
+@router.message(F.text == "👤 Мой VPN")
+async def my_vpn(message: Message):
 
     user = users_repo.get_by_telegram(
         message.from_user.id
@@ -42,80 +44,79 @@ async def subscriptions(message: Message):
         return
 
 
+    # Берём один активный VPN
+    subscription = subscriptions[0]
 
-    text = (
-        "👤 <b>Мой VPN</b>\n\n"
+
+    try:
+
+        subscription = await vpn_service.sync_subscription(
+            subscription
+        )
+
+    except Exception as e:
+
+        print(
+            f"[VPN] Sync failed: {e}"
+        )
+
+
+
+    days_left = max(
+        0,
+        (
+            subscription.expires_at
+            -
+            datetime.now()
+        ).days,
     )
 
 
-    for index, sub in enumerate(
-        subscriptions,
-        start=1,
-    ):
+    if subscription.status == SubscriptionStatus.ACTIVE:
 
-
-        try:
-
-            sub = await vpn_service.sync_subscription(
-                sub
-            )
-
-
-        except Exception as e:
-
-            print(
-                f"[VPN] Failed to sync subscription {sub.id}: {e}"
-            )
-
-
-
-        days_left = max(
-            0,
-            (
-                sub.expires_at
-                -
-                datetime.now()
-            ).days,
-        )
-
-
-
-        if sub.status == SubscriptionStatus.ACTIVE:
-
-            if days_left > 0:
-                status = "✅ Активен"
-
-            else:
-                status = "❌ Истёк"
+        if days_left > 0:
+            status = "✅ Активен"
 
         else:
+            status = "❌ Истёк"
 
-            status = "❌ Неактивен"
+    else:
+
+        status = "❌ Неактивен"
 
 
 
-        text += (
+    subscription_days = (
+        subscription.expires_at
+        -
+        subscription.created_at
+    ).days
 
-            f"🔐 <b>Статус:</b>\n"
-            f"{status}\n\n"
 
-            f"📦 <b>Подписка:</b>\n"
-            f"{(sub.expires_at - sub.created_at).days} дней\n\n"
 
-            f"⏳ <b>Действует до:</b>\n"
-            f"{sub.expires_at.strftime('%d.%m.%Y %H:%M')}\n\n"
+    text = (
 
-            f"⌛ <b>Осталось:</b>\n"
-            f"{days_left} дней\n\n"
+        "👤 <b>Мой VPN</b>\n\n"
 
-        )
+        "🔐 <b>Статус:</b>\n"
+        f"{status}\n\n"
 
+        "📦 <b>Подписка:</b>\n"
+        f"{subscription_days} дней\n\n"
+
+        "⏳ <b>Действует до:</b>\n"
+        f"{subscription.expires_at.strftime('%d.%m.%Y %H:%M')}\n\n"
+
+        "⌛ <b>Осталось:</b>\n"
+        f"{days_left} дней"
+
+    )
 
 
     await message.answer(
         text,
         parse_mode="HTML",
-        reply_markup=subscription_select_menu(
-            subscriptions
+        reply_markup=subscription_actions_menu(
+            subscription
         ),
     )
