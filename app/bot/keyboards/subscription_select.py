@@ -1,4 +1,7 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 
 
 def subscription_select_menu(subscriptions):
@@ -11,7 +14,7 @@ def subscription_select_menu(subscriptions):
         buttons.append(
             [
                 InlineKeyboardButton(
-                    text=f"🔒 {sub.protocol.upper()}",
+                    text="👤 Мой VPN",
                     callback_data=f"select_subscription:{sub.id}",
                 )
             ]

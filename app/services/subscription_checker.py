@@ -2,7 +2,7 @@ from loguru import logger
 
 from app.repositories.subscription_repository import subscription_repo
 from app.services.xui_client import XUIClient
-from app.domain.enums import SubscriptionStatus
+from app.domain.legacy_enums import SubscriptionStatus
 
 
 class SubscriptionChecker:

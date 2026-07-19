@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from app.domain.enums import SubscriptionStatus
+from app.domain.legacy_enums import SubscriptionStatus
 from app.domain.inbound import Inbound
 from app.domain.subscription import Subscription
 from app.protocols.handlers.base import ProtocolHandler

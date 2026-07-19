@@ -43,12 +43,27 @@ async def select_subscription(
 
         return
 
+
+    days_left = max(
+        0,
+        (
+            subscription.expires_at
+            - callback.message.date
+        ).days,
+    )
+
+
     await callback.message.answer(
         (
-            "📦 <b>Подписка</b>\n\n"
-            f"🔒 <b>Протокол:</b> {subscription.protocol.upper()}\n"
-            f"📅 <b>До:</b> "
-            f"{subscription.expires_at.strftime('%d.%m.%Y %H:%M')}"
+            "👤 <b>Мой VPN</b>\n\n"
+            "🔐 <b>Статус:</b>\n"
+            "✅ Активен\n\n"
+            "📦 <b>Подписка:</b>\n"
+            f"{(subscription.expires_at - subscription.created_at).days} дней\n\n"
+            "⏳ <b>Действует до:</b>\n"
+            f"{subscription.expires_at.strftime('%d.%m.%Y %H:%M')}\n\n"
+            "⌛ <b>Осталось:</b>\n"
+            f"{days_left} дней"
         ),
         parse_mode="HTML",
         reply_markup=subscription_actions_menu(
@@ -57,6 +72,7 @@ async def select_subscription(
     )
 
     await callback.answer()
+
 
 
 @router.callback_query(
@@ -73,16 +89,25 @@ async def qr(
     if subscription is None:
         return
 
-    photo = qr_service.generate(
-        subscription.config
+
+    config = await vpn_service.get_wireguard_config(
+        subscription
     )
+
+
+    photo = qr_service.generate(
+        config
+    )
+
 
     await callback.message.answer_photo(
         photo,
-        caption="📷 QR Code",
+        caption="📷 WireGuard QR-код",
     )
 
+
     await callback.answer()
+
 
 
 @router.callback_query(
@@ -99,29 +124,26 @@ async def config(
     if subscription is None:
         return
 
-    if subscription.protocol == "wireguard":
-        config = await vpn_service.get_wireguard_config(
-            subscription
-        )
+
+    config = await vpn_service.get_wireguard_config(
+        subscription
+    )
 
 
-        await callback.message.answer_document(
-            BufferedInputFile(
-                config.encode("utf-8"),
-                filename=f"{subscription.client_email}.conf",
-            ),
-            caption="📁 WireGuard конфигурация",
-        )
+    file = BufferedInputFile(
+        config.encode("utf-8"),
+        filename=f"{subscription.client_email}.conf",
+    )
 
-    else:
 
-        await callback.message.answer(
-            "📋 <b>Конфигурация</b>\n\n"
-            f"<code>{subscription.config}</code>",
-            parse_mode="HTML",
-        )
+    await callback.message.answer_document(
+        document=file,
+        caption="📥 WireGuard конфигурация",
+    )
+
 
     await callback.answer()
+
 
 
 @router.callback_query(
@@ -138,6 +160,7 @@ async def renew(
     if subscription is None:
         return
 
+
     await callback.message.answer(
         "📅 Выберите срок продления",
         reply_markup=renew_menu(
@@ -145,7 +168,9 @@ async def renew(
         ),
     )
 
+
     await callback.answer()
+
 
 
 async def do_renew(
@@ -157,21 +182,27 @@ async def do_renew(
         callback
     )
 
+
     if subscription is None:
         return
+
 
     subscription = await vpn_service.renew(
         subscription.id,
         days,
     )
 
+
     await callback.message.answer(
         "✅ Подписка продлена\n\n"
-        f"До <b>{subscription.expires_at.strftime('%d.%m.%Y %H:%M')}</b>",
+        f"⏳ Действует до:\n"
+        f"<b>{subscription.expires_at.strftime('%d.%m.%Y %H:%M')}</b>",
         parse_mode="HTML",
     )
 
+
     await callback.answer()
+
 
 
 @router.callback_query(
@@ -180,10 +211,12 @@ async def do_renew(
 async def renew30(
     callback: CallbackQuery,
 ):
+
     await do_renew(
         callback,
         30,
     )
+
 
 
 @router.callback_query(
@@ -192,10 +225,12 @@ async def renew30(
 async def renew90(
     callback: CallbackQuery,
 ):
+
     await do_renew(
         callback,
         90,
     )
+
 
 
 @router.callback_query(
@@ -204,10 +239,12 @@ async def renew90(
 async def renew180(
     callback: CallbackQuery,
 ):
+
     await do_renew(
         callback,
         180,
     )
+
 
 
 @router.callback_query(
@@ -216,6 +253,7 @@ async def renew180(
 async def renew365(
     callback: CallbackQuery,
 ):
+
     await do_renew(
         callback,
         365,

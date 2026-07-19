@@ -16,56 +16,41 @@ class TelegramService:
 
         try:
 
-            if subscription.protocol == "wireguard":
+            filename, config = await vpn_service.get_wireguard_file(
+                subscription
+            )
 
-                config = await vpn_service.get_wireguard_config(
-                    subscription
-                )
+            file = BufferedInputFile(
+                config.encode("utf-8"),
+                filename=filename,
+            )
 
-                file = BufferedInputFile(
-                    config.encode("utf-8"),
-                    filename=f"{subscription.client_email}.conf",
-                )
 
-                await bot.send_message(
-                    chat_id=user_id,
-                    text=(
-                        "✅ <b>Оплата успешно получена!</b>\n\n"
-                        "🔐 Ваш WireGuard VPN готов."
-                    ),
-                    parse_mode=ParseMode.HTML,
-                )
-
-                await bot.send_document(
-                    chat_id=user_id,
-                    document=file,
-                    caption="📁 WireGuard конфигурация",
-                )
-
-            else:
-
-                config = await vpn_service.get_config(
-                    subscription.id
-                )
-
-                text = (
+            await bot.send_message(
+                chat_id=user_id,
+                text=(
                     "✅ <b>Оплата успешно получена!</b>\n\n"
                     "🔐 Ваш VPN готов.\n\n"
-                    "<b>Конфигурация:</b>\n"
-                    f"<code>{config}</code>"
-                )
+                    "📁 Конфигурационный файл отправлен ниже."
+                ),
+                parse_mode=ParseMode.HTML,
+            )
 
-                await bot.send_message(
-                    chat_id=user_id,
-                    text=text,
-                    parse_mode=ParseMode.HTML,
-                )
+
+            await bot.send_document(
+                chat_id=user_id,
+                document=file,
+                caption="📥 WireGuard конфигурация",
+            )
+
 
         except Exception:
+
             logger.exception(
                 "Не удалось отправить VPN пользователю %s",
                 user_id,
             )
+
             raise
 
 

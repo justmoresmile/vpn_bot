@@ -2,11 +2,9 @@ from loguru import logger
 
 from app.domain.subscription import Subscription
 from app.protocols.handlers.base import ProtocolHandler
-import app.protocols
 from app.repositories.subscription_repository import subscription_repo
 from app.services.xui_client import XUIClient
 from app.protocols.wireguard.link_parser import wireguard_link_to_config
-
 
 
 class VPNService:
@@ -15,7 +13,7 @@ class VPNService:
     async def create(
         self,
         user_id: int,
-        protocol: str = "vless",
+        protocol: str = "wireguard",
         days: int = 30,
     ) -> Subscription:
 
@@ -31,9 +29,11 @@ class VPNService:
                 days=days,
             )
 
+
             created = subscription_repo.create(
                 subscription
             )
+
 
             logger.info(
                 "VPN created user={} subscription={}",
@@ -41,20 +41,27 @@ class VPNService:
                 created.id,
             )
 
+
             return created
+
 
 
     async def purchase(
         self,
         user_id: int,
-        protocol: str = "vless",
+        protocol: str = "wireguard",
         days: int = 30,
     ) -> Subscription:
 
-        subscription = subscription_repo.get_active_by_user_protocol(
-            user_id,
-            protocol,
+
+        subscription = (
+            subscription_repo
+            .get_active_by_user_protocol(
+                user_id,
+                protocol,
+            )
         )
+
 
         if subscription is not None:
 
@@ -63,11 +70,14 @@ class VPNService:
                 days,
             )
 
+
         return await self.create(
             user_id=user_id,
             protocol=protocol,
             days=days,
         )
+
+
 
     async def renew(
         self,
@@ -89,15 +99,12 @@ class VPNService:
             )
 
 
-
         handler = ProtocolHandler.create(
             subscription.protocol
         )
 
 
-
         async with XUIClient() as xui:
-
 
             renewed = await handler.renew(
                 xui=xui,
@@ -118,7 +125,6 @@ class VPNService:
 
 
         return renewed
-
 
 
 
@@ -167,13 +173,12 @@ class VPNService:
             )
 
 
-
         subscription_repo.update(
             disabled
         )
 
 
-        logger.info(
+        logger.warning(
             "Subscription {} disabled",
             disabled.id,
         )
@@ -182,16 +187,19 @@ class VPNService:
         return disabled
 
 
+
     async def delete(
         self,
         subscription_id: int,
-    ) -> None:  
+    ) -> None:
+
 
         subscription = (
             subscription_repo.get_by_id(
                 subscription_id
             )
         )
+
 
         if subscription is None:
             return
@@ -221,6 +229,7 @@ class VPNService:
         )
 
 
+
     async def restore_client(
         self,
         subscription: Subscription,
@@ -233,7 +242,6 @@ class VPNService:
 
 
         async with XUIClient() as xui:
-
 
             restored = await handler.restore_client(
                 xui=xui,
@@ -253,8 +261,6 @@ class VPNService:
 
 
         return restored
-
-
 
 
 
@@ -279,6 +285,89 @@ class VPNService:
 
 
 
+    async def get_wireguard_config(
+        self,
+        subscription: Subscription,
+    ) -> str:
+
+
+        async with XUIClient() as xui:
+
+
+            inbound = await xui.get_inbound_by_id(
+                subscription.inbound_id
+            )
+
+
+            if inbound is None:
+                raise RuntimeError(
+                    "WireGuard inbound не найден"
+                )
+
+
+            client = await xui.get_wireguard_client(
+                inbound,
+                subscription.client_email,
+            )
+
+
+            if client is None:
+                raise RuntimeError(
+                    "WireGuard клиент не найден"
+                )
+
+
+            links = await xui.get_subscription_links(
+                client["subId"]
+            )
+
+
+            if not links:
+                raise RuntimeError(
+                    "Панель не вернула WireGuard ссылку"
+                )
+
+
+            return wireguard_link_to_config(
+                links[0]
+            )
+
+
+
+    async def get_config_file(
+        self,
+        subscription: Subscription,
+    ) -> bytes:
+
+
+        if subscription.protocol == "wireguard":
+
+
+            config = await self.get_wireguard_config(
+                subscription
+            )
+
+
+            return config.encode(
+                "utf-8"
+            )
+
+
+        config = await self.get_config(
+            subscription.id
+        )
+
+
+        if config is None:
+            raise RuntimeError(
+                "Конфигурация не найдена"
+            )
+
+
+        return config.encode(
+            "utf-8"
+        )
+
 
 
     def get_by_user(
@@ -290,21 +379,29 @@ class VPNService:
             user_id
         )
 
+
+
     async def get_subscription(
         self,
         subscription_id: int,
     ) -> Subscription | None:
 
-        subscription = subscription_repo.get_by_id(
-            subscription_id
+
+        subscription = (
+            subscription_repo.get_by_id(
+                subscription_id
+            )
         )
+
 
         if subscription is None:
             return None
 
+
         handler = ProtocolHandler.create(
             subscription.protocol
         )
+
 
         async with XUIClient() as xui:
 
@@ -313,36 +410,14 @@ class VPNService:
                 subscription=subscription,
             )
 
+
         subscription_repo.update(
             synced
         )
 
+
         return synced
 
-
-
-    async def get_config_file(
-        self,
-        subscription_id: int,
-    ):
-
-        subscription = subscription_repo.get_by_id(
-            subscription_id
-        )
-
-        if subscription is None:
-            return None
-
-        handler = ProtocolHandler.create(
-            subscription.protocol
-        )
-
-        async with XUIClient() as xui:
-
-            return await handler.get_file(
-                xui=xui,
-                subscription=subscription,
-            )
 
 
     async def sync_subscription(
@@ -370,46 +445,6 @@ class VPNService:
 
 
         return synced
-   
-
-    async def get_wireguard_config(
-        self,
-        subscription: Subscription,
-    ) -> str:
-
-        async with XUIClient() as xui:
-
-            inbound = await xui.get_inbound_by_id(
-                subscription.inbound_id
-            )
-
-            if inbound is None:
-                raise RuntimeError(
-                    "Inbound не найден"
-                )
-
-            client = await xui.get_wireguard_client(
-                inbound,
-                subscription.client_email,
-            )
-
-            if client is None:
-                raise RuntimeError(
-                    "Клиент WireGuard не найден"
-                )
-
-            links = await xui.get_subscription_links(
-                client["subId"]
-            )
-
-            if not links:
-                raise RuntimeError(
-                    "3x-ui не вернул ссылку подписки"
-                )
-
-            return wireguard_link_to_config(
-                links[0]
-            )
 
 
 
