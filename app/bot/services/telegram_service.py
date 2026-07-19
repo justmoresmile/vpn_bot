@@ -41,11 +41,11 @@ class TelegramService:
             )
 
         except Exception:
-
             logger.exception(
-                "Не удалось отправить VPN пользователю {}",
+                "Не удалось отправить VPN пользователю %s",
                 user_id,
             )
+            raise
 
 
 telegram_service = TelegramService()

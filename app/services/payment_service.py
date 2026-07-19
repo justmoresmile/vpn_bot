@@ -7,6 +7,7 @@ from app.repositories.payment_repository import payment_repo
 from app.payments.yookassa_client import yookassa_client
 from app.services.vpn_service import vpn_service
 from app.bot.services import telegram_service
+from app.repositories.user_repository import users_repo
 
 
 class PaymentService:
@@ -161,8 +162,12 @@ class PaymentService:
 
         )
 
+        user = users_repo.get_by_id(
+            payment.user_id
+        )
+
         await telegram_service.send_subscription(
-            payment.user_id,
+            user.telegram_id,
             subscription,
         )
 

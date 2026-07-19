@@ -71,4 +71,18 @@ class UsersRepository:
             ),
         )
 
+    @staticmethod
+    def get_by_id(user_id: int) -> User | None:
+        row = db.fetchone(
+            """
+            SELECT *
+            FROM users
+            WHERE id = ?
+            """,
+            (user_id,),
+        )
+
+        return UsersRepository._to_entity(row) if row else None
+
+
 users_repo = UsersRepository()
