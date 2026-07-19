@@ -1,4 +1,5 @@
 from aiogram.enums import ParseMode
+from aiogram.types import BufferedInputFile
 
 from app.bot.bot_instance import bot
 from app.logger import logger
@@ -21,24 +22,44 @@ class TelegramService:
                     subscription
                 )
 
+                file = BufferedInputFile(
+                    config.encode("utf-8"),
+                    filename=f"{subscription.client_email}.conf",
+                )
+
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=(
+                        "✅ <b>Оплата успешно получена!</b>\n\n"
+                        "🔐 Ваш WireGuard VPN готов."
+                    ),
+                    parse_mode=ParseMode.HTML,
+                )
+
+                await bot.send_document(
+                    chat_id=user_id,
+                    document=file,
+                    caption="📁 WireGuard конфигурация",
+                )
+
             else:
 
                 config = await vpn_service.get_config(
                     subscription.id
                 )
 
-            text = (
-                "✅ <b>Оплата успешно получена!</b>\n\n"
-                "🔐 Ваш VPN готов.\n\n"
-                "<b>Конфигурация:</b>\n"
-                f"<code>{config}</code>"
-            )
+                text = (
+                    "✅ <b>Оплата успешно получена!</b>\n\n"
+                    "🔐 Ваш VPN готов.\n\n"
+                    "<b>Конфигурация:</b>\n"
+                    f"<code>{config}</code>"
+                )
 
-            await bot.send_message(
-                chat_id=user_id,
-                text=text,
-                parse_mode=ParseMode.HTML,
-            )
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=text,
+                    parse_mode=ParseMode.HTML,
+                )
 
         except Exception:
             logger.exception(
