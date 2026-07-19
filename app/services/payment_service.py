@@ -6,6 +6,7 @@ from app.domain.enums.payment_status import PaymentStatus
 from app.repositories.payment_repository import payment_repo
 from app.payments.yookassa_client import yookassa_client
 from app.services.vpn_service import vpn_service
+from app.bot.services import telegram_service
 
 
 class PaymentService:
@@ -144,26 +145,13 @@ class PaymentService:
 
 
         # отмечаем оплату
-
-        payment_repo.mark_paid(
-            payment.id
-        )
-
-
+        payment_repo.mark_paid(payment.id)
 
         # получаем обновлённый объект
-
-        payment = (
-            self.get_payment(
-                payment.id
-            )
-        )
-
-
+        payment = self.get_payment(payment.id)
 
         # создаём VPN
-
-        await vpn_service.purchase(
+        subscription = await vpn_service.purchase(
 
             user_id=payment.user_id,
 
@@ -173,6 +161,10 @@ class PaymentService:
 
         )
 
+        await telegram_service.send_subscription(
+            payment.user_id,
+            subscription,
+        )
 
         return payment
     

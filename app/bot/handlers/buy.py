@@ -3,7 +3,6 @@ import traceback
 from aiogram import F, Router
 from aiogram.types import (
     Message,
-    CallbackQuery,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
 )
@@ -125,32 +124,24 @@ async def create_subscription(
             return
 
 
-
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="💳 Оплатить",
-                        url=payment.confirmation_url,
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        text="✅ Проверить оплату",
-                        callback_data=f"check_payment:{payment.id}",
-                    )
-                ],
-            ]
-        )
-
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="💳 Оплатить",
+                            url=payment.confirmation_url,
+                        )
+                    ],
+                ]
+            )
         await message.answer(
             (
                 "💳 <b>Оплата VPN</b>\n\n"
                 f"🔌 Протокол: <b>{protocol.upper()}</b>\n"
                 f"📅 Срок: <b>{days} дней</b>\n"
                 f"💰 Сумма: <b>{payment.amount} ₽</b>\n\n"
-                "После оплаты нажмите кнопку "
-                "<b>«Проверить оплату»</b>."
+            "После успешной оплаты VPN будет создан автоматически.\n"
+            "Конфиг придёт в этот чат."
             ),
             parse_mode="HTML",
             reply_markup=keyboard,
@@ -170,44 +161,3 @@ async def create_subscription(
             "❌ Ошибка при создании платежа.",
             reply_markup=main_menu,
         )
-
-
-@router.callback_query(
-    F.data.startswith("check_payment:")
-)
-async def check_payment_callback(
-    callback: CallbackQuery,
-):
-    payment_id = int(
-        callback.data.split(":")[1]
-    )
-
-    payment = payment_service.get_payment(
-        payment_id
-    )
-
-    if payment is None:
-
-        await callback.answer(
-            "Платёж не найден.",
-            show_alert=True,
-        )
-        return
-
-    success = await payment_service.check_payment(
-        payment.provider_payment_id
-    )
-
-    if success:
-
-        await callback.message.edit_text(
-            "✅ Оплата получена!\n\n"
-            "VPN успешно создан."
-        )
-
-    else:
-
-        await callback.answer(
-            "Платёж ещё не подтверждён.",
-            show_alert=True,
-        )       

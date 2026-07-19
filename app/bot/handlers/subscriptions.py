@@ -7,7 +7,7 @@ from app.bot.keyboards.subscription_select import subscription_select_menu
 from app.config import settings
 from app.repositories.user_repository import users_repo
 from app.services.vpn_service import vpn_service
-from app.domain.enums import SubscriptionStatus
+from app.domain.legacy_enums import SubscriptionStatus
 from app.bot.keyboards.subscription_menu import subscriptions_list_menu
 
 
