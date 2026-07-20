@@ -447,5 +447,22 @@ class VPNService:
         return synced
 
 
+    async def get_wireguard_file(
+        self,
+        subscription: Subscription,
+    ) -> tuple[str, str]:
+
+        config = await self.get_wireguard_config(subscription)
+
+        filename = (
+            subscription.client_email
+            if subscription.client_email.endswith(".conf")
+            else f"{subscription.client_email}.conf"
+        )
+
+        return filename, config
+
+
+
 
 vpn_service = VPNService()
