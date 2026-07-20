@@ -19,7 +19,6 @@ class ProtocolHandler(ABC):
 
     _registry: dict[str, type["ProtocolHandler"]] = {}
 
-
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
@@ -28,19 +27,13 @@ class ProtocolHandler(ABC):
         if protocol:
             ProtocolHandler._registry[protocol] = cls
 
-
     @classmethod
     def create(
         cls,
         protocol: str,
     ) -> "ProtocolHandler":
-        """
-        Создает обработчик по имени протокола.
-        """
 
-        handler_cls = cls._registry.get(
-            protocol
-        )
+        handler_cls = cls._registry.get(protocol)
 
         if handler_cls is None:
             raise ValueError(
@@ -49,33 +42,19 @@ class ProtocolHandler(ABC):
 
         return handler_cls()
 
-
-
     @classmethod
     def protocols(
         cls,
     ) -> list[str]:
-        """
-        Список доступных протоколов.
-        """
 
-        return sorted(
-            cls._registry.keys()
-        )
-
-
+        return sorted(cls._registry.keys())
 
     @abstractmethod
     async def get_inbound(
         self,
         xui,
     ) -> Inbound | None:
-        """
-        Найти inbound протокола.
-        """
         raise NotImplementedError
-
-
 
     @abstractmethod
     def build_payload(
@@ -83,12 +62,7 @@ class ProtocolHandler(ABC):
         subscription: Subscription,
         inbound: Inbound,
     ) -> dict:
-        """
-        Создать payload клиента для XUI.
-        """
         raise NotImplementedError
-
-
 
     @abstractmethod
     def build_config(
@@ -96,12 +70,7 @@ class ProtocolHandler(ABC):
         subscription: Subscription,
         inbound: Inbound,
     ) -> str:
-        """
-        Создать VPN конфигурацию.
-        """
         raise NotImplementedError
-
-
 
     @abstractmethod
     async def create_subscription(
@@ -110,12 +79,7 @@ class ProtocolHandler(ABC):
         user_id: int,
         days: int,
     ) -> Subscription:
-        """
-        Создание нового клиента.
-        """
         raise NotImplementedError
-
-
 
     @abstractmethod
     async def restore_client(
@@ -123,12 +87,7 @@ class ProtocolHandler(ABC):
         xui,
         subscription: Subscription,
     ) -> Subscription:
-        """
-        Восстановление клиента в XUI.
-        """
         raise NotImplementedError
-
-
 
     @abstractmethod
     async def renew(
@@ -137,12 +96,7 @@ class ProtocolHandler(ABC):
         subscription: Subscription,
         days: int,
     ) -> Subscription:
-        """
-        Продление клиента.
-        """
         raise NotImplementedError
-
-
 
     @abstractmethod
     async def disable(
@@ -150,12 +104,7 @@ class ProtocolHandler(ABC):
         xui,
         subscription: Subscription,
     ) -> Subscription:
-        """
-        Отключение клиента.
-        """
         raise NotImplementedError
-
-
 
     @abstractmethod
     async def sync(
@@ -163,11 +112,10 @@ class ProtocolHandler(ABC):
         xui,
         subscription: Subscription,
     ) -> Subscription:
-        """
-        Синхронизация состояния клиента
-        между XUI и БД.
-        """
         raise NotImplementedError
+
+
+
     @abstractmethod
     async def delete(
         self,
@@ -178,8 +126,47 @@ class ProtocolHandler(ABC):
         Удаляет клиента из XUI.
         """
         raise NotImplementedError
-    
-    # Автоматически загружаем все протоколы
+
+    @abstractmethod
+    async def get_file(
+        self,
+        xui,
+        subscription: Subscription,
+    ) -> tuple[str, bytes]:
+        """
+        Возвращает готовый конфигурационный файл.
+        """
+        raise NotImplementedError
+
+
+
+    @abstractmethod
+    async def delete(
+        self,
+        xui,
+        subscription: Subscription,
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_file(
+        self,
+        xui,
+        subscription: Subscription,
+    ) -> tuple[str, bytes]:
+        """
+        Вернуть готовый конфигурационный файл.
+
+        Returns:
+            (
+                filename,
+                file_bytes
+            )
+        """
+        raise NotImplementedError
+
+
+# Автоматически загружаем все протоколы
 from app.protocols.loader import load_protocol_handlers
 
 load_protocol_handlers()

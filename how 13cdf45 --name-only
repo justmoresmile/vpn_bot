@@ -1,0 +1,619 @@
+[33mcommit 13cdf45291e03703c0ceaf2bbfe76e98046262ac[m
+Author: justmoresmile <justmoresmile@yandex.ru>
+Date:   Sun Jul 19 15:24:50 2026 +0300
+
+    Add YooKassa payment polling
+
+[1mdiff --git a/app/api/routes/payments.py b/app/api/routes/payments.py[m
+[1mindex e69de29..caf80d5 100644[m
+[1m--- a/app/api/routes/payments.py[m
+[1m+++ b/app/api/routes/payments.py[m
+[36m@@ -0,0 +1,68 @@[m
+[32m+[m[32mfrom fastapi import APIRouter, Request[m
+[32m+[m
+[32m+[m[32mfrom app.logger import logger[m
+[32m+[m[32mfrom app.services.payment_service import payment_service[m
+[32m+[m
+[32m+[m
+[32m+[m[32mrouter = APIRouter([m
+[32m+[m[32m    prefix="/payments",[m
+[32m+[m[32m    tags=["payments"],[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.post("/yookassa/webhook")[m
+[32m+[m[32masync def yookassa_webhook([m
+[32m+[m[32m    request: Request,[m
+[32m+[m[32m):[m
+[32m+[m
+[32m+[m[32m    data = await request.json()[m
+[32m+[m
+[32m+[m[32m    logger.info([m
+[32m+[m[32m        f"YooKassa webhook received: {data}"[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    event = data.get("event")[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    if event != "payment.succeeded":[m
+[32m+[m
+[32m+[m[32m        logger.info([m
+[32m+[m[32m            f"Ignore YooKassa event: {event}"[m
+[32m+[m[32m        )[m
+[32m+[m
+[32m+[m[32m        return {[m
+[32m+[m[32m            "status": "ignored"[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    payment_object = data.get([m
+[32m+[m[32m        "object",[m
+[32m+[m[32m        {}[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    provider_payment_id = payment_object.get([m
+[32m+[m[32m        "id"[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    if not provider_payment_id:[m
+[32m+[m
+[32m+[m[32m        logger.warning([m
+[32m+[m[32m            "Webhook without payment id"[m
+[32m+[m[32m        )[m
+[32m+[m
+[32m+[m[32m        return {[m
+[32m+[m[32m            "status": "error"[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    await payment_service.process_successful_payment([m
+[32m+[m[32m        provider_payment_id[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    return {[m
+[32m+[m[32m        "status": "ok"[m
+[32m+[m[32m    }[m
+\ No newline at end of file[m
+[1mdiff --git a/app/api/server.py b/app/api/server.py[m
+[1mindex 79449f1..cd12da3 100644[m
+[1m--- a/app/api/server.py[m
+[1m+++ b/app/api/server.py[m
+[36m@@ -1,10 +1,14 @@[m
+ from fastapi import FastAPI[m
+ [m
+ from app.api.routes.health import router as health_router[m
+[32m+[m[32mfrom app.api.routes.payments import router as payments_router[m
+ [m
+ app = FastAPI([m
+     title="VPN Backend",[m
+     version="1.0.0",[m
+ )[m
+[32m+[m[32mapp.include_router([m
+[32m+[m[32m    payments_router[m
+[32m+[m[32m)[m
+ [m
+ app.include_router(health_router)[m
+\ No newline at end of file[m
+[1mdiff --git a/app/bootstrap.py b/app/bootstrap.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..6cc8994[m
+[1m--- /dev/null[m
+[1m+++ b/app/bootstrap.py[m
+[36m@@ -0,0 +1,9 @@[m
+[32m+[m[32mimport ssl[m
+[32m+[m
+[32m+[m[32mtry:[m
+[32m+[m[32m    import truststore[m
+[32m+[m
+[32m+[m[32m    truststore.inject_into_ssl()[m
+[32m+[m[32m    print("Windows Trust Store enabled")[m
+[32m+[m[32mexcept Exception:[m
+[32m+[m[32m    print("Default SSL certificates")[m
+\ No newline at end of file[m
+[1mdiff --git a/app/bot/handlers/buy.py b/app/bot/handlers/buy.py[m
+[1mindex fc00e22..301d554 100644[m
+[1m--- a/app/bot/handlers/buy.py[m
+[1m+++ b/app/bot/handlers/buy.py[m
+[36m@@ -3,7 +3,9 @@[m [mimport traceback[m
+ from aiogram import F, Router[m
+ from aiogram.types import ([m
+     Message,[m
+[31m-    BufferedInputFile,[m
+[32m+[m[32m    CallbackQuery,[m
+[32m+[m[32m    InlineKeyboardMarkup,[m
+[32m+[m[32m    InlineKeyboardButton,[m
+ )[m
+ [m
+ from app.bot.keyboards.buy_menu import buy_menu[m
+[36m@@ -14,6 +16,9 @@[m [mfrom app.repositories.user_repository import users_repo[m
+ [m
+ from app.services.qr_service import qr_service[m
+ from app.services.vpn_service import vpn_service[m
+[32m+[m[32mfrom app.services.payment_service import payment_service[m
+[32m+[m
+[32m+[m
+ [m
+ [m
+ router = Router()[m
+[36m@@ -79,7 +84,6 @@[m [masync def back(message: Message):[m
+         reply_markup=main_menu,[m
+     )[m
+ [m
+[31m-[m
+ async def create_subscription([m
+     message: Message,[m
+     protocol: str,[m
+[36m@@ -92,6 +96,7 @@[m [masync def create_subscription([m
+             message.from_user.id,[m
+         )[m
+ [m
+[32m+[m
+         if user is None:[m
+ [m
+             await message.answer([m
+[36m@@ -101,56 +106,108 @@[m [masync def create_subscription([m
+ [m
+             return[m
+ [m
+[31m-        subscription = await vpn_service.purchase([m
+[32m+[m
+[32m+[m
+[32m+[m[32m        payment = payment_service.create_payment([m
+             user_id=user.id,[m
+             protocol=protocol,[m
+             days=days,[m
+         )[m
+ [m
+[31m-        caption = ([m
+[31m-            "✅ <b>VPN готов!</b>\n\n"[m
+[31m-            f"🔌 Протокол: <b>{subscription.protocol.upper()}</b>\n"[m
+[31m-            f"📅 Срок: <b>{days} дней</b>"[m
+[31m-        )[m
+ [m
+[31m-        if subscription.protocol == "wireguard":[m
+[32m+[m[32m        if payment.confirmation_url is None:[m
+ [m
+[31m-            config = await vpn_service.get_wireguard_config([m
+[31m-                subscription[m
+[31m-            )[m
+[31m-            await message.answer_document([m
+[31m-                BufferedInputFile([m
+[31m-                    config.encode("utf-8"),[m
+[31m-                    filename=f"{subscription.client_email}.conf",[m
+[31m-                ),[m
+[31m-                caption=caption,[m
+[31m-                parse_mode="HTML",[m
+[32m+[m[32m            await message.answer([m
+[32m+[m[32m                "❌ Не удалось создать ссылку оплаты.",[m
+                 reply_markup=main_menu,[m
+             )[m
+[32m+[m
+             return[m
+ [m
+[31m-        photo = qr_service.generate([m
+[31m-            subscription.config,[m
+[31m-        )[m
+ [m
+[31m-        await message.answer_photo([m
+[31m-            photo=photo,[m
+[31m-            caption=caption,[m
+[31m-            parse_mode="HTML",[m
+[32m+[m
+[32m+[m[32m        keyboard = InlineKeyboardMarkup([m
+[32m+[m[32m            inline_keyboard=[[m
+[32m+[m[32m                [[m
+[32m+[m[32m                    InlineKeyboardButton([m
+[32m+[m[32m                        text="💳 Оплатить",[m
+[32m+[m[32m                        url=payment.confirmation_url,[m
+[32m+[m[32m                    )[m
+[32m+[m[32m                ],[m
+[32m+[m[32m                [[m
+[32m+[m[32m                    InlineKeyboardButton([m
+[32m+[m[32m                        text="✅ Проверить оплату",[m
+[32m+[m[32m                        callback_data=f"check_payment:{payment.id}",[m
+[32m+[m[32m                    )[m
+[32m+[m[32m                ],[m
+[32m+[m[32m            ][m
+         )[m
+ [m
+         await message.answer([m
+[31m-            "📋 <b>Конфигурация:</b>\n\n"[m
+[31m-            f"<code>{subscription.config}</code>",[m
+[32m+[m[32m            ([m
+[32m+[m[32m                "💳 <b>Оплата VPN</b>\n\n"[m
+[32m+[m[32m                f"🔌 Протокол: <b>{protocol.upper()}</b>\n"[m
+[32m+[m[32m                f"📅 Срок: <b>{days} дней</b>\n"[m
+[32m+[m[32m                f"💰 Сумма: <b>{payment.amount} ₽</b>\n\n"[m
+[32m+[m[32m                "После оплаты нажмите кнопку "[m
+[32m+[m[32m                "<b>«Проверить оплату»</b>."[m
+[32m+[m[32m            ),[m
+             parse_mode="HTML",[m
+[31m-            reply_markup=main_menu,[m
+[32m+[m[32m            reply_markup=keyboard,[m
+         )[m
+ [m
+[32m+[m
+     except Exception:[m
+ [m
+[31m-        traceback.print_exc()[m
+[32m+[m[32m        from app.logger import logger[m
+[32m+[m
+[32m+[m[32m        logger.exception([m
+[32m+[m[32m            "Payment creation failed"[m
+[32m+[m[32m        )[m
+[32m+[m
+ [m
+         await message.answer([m
+[31m-            "❌ Ошибка при создании VPN.",[m
+[32m+[m[32m            "❌ Ошибка при создании платежа.",[m
+             reply_markup=main_menu,[m
+[31m-        )[m
+\ No newline at end of file[m
+[32m+[m[32m        )[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.callback_query([m
+[32m+[m[32m    F.data.startswith("check_payment:")[m
+[32m+[m[32m)[m
+[32m+[m[32masync def check_payment_callback([m
+[32m+[m[32m    callback: CallbackQuery,[m
+[32m+[m[32m):[m
+[32m+[m[32m    payment_id = int([m
+[32m+[m[32m        callback.data.split(":")[1][m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    payment = payment_service.get_payment([m
+[32m+[m[32m        payment_id[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    if payment is None:[m
+[32m+[m
+[32m+[m[32m        await callback.answer([m
+[32m+[m[32m            "Платёж не найден.",[m
+[32m+[m[32m            show_alert=True,[m
+[32m+[m[32m        )[m
+[32m+[m[32m        return[m
+[32m+[m
+[32m+[m[32m    success = await payment_service.check_payment([m
+[32m+[m[32m        payment.provider_payment_id[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    if success:[m
+[32m+[m
+[32m+[m[32m        await callback.message.edit_text([m
+[32m+[m[32m            "✅ Оплата получена!\n\n"[m
+[32m+[m[32m            "VPN успешно создан."[m
+[32m+[m[32m        )[m
+[32m+[m
+[32m+[m[32m    else:[m
+[32m+[m
+[32m+[m[32m        await callback.answer([m
+[32m+[m[32m            "Платёж ещё не подтверждён.",[m
+[32m+[m[32m            show_alert=True,[m
+[32m+[m[32m        )[m[41m       [m
+\ No newline at end of file[m
+[1mdiff --git a/app/config.py b/app/config.py[m
+[1mindex 2085b68..045f1f6 100644[m
+[1m--- a/app/config.py[m
+[1m+++ b/app/config.py[m
+[36m@@ -28,6 +28,11 @@[m [mclass Settings:[m
+     # Database[m
+     database_path: str[m
+ [m
+[32m+[m[32m    # YooKassa[m
+[32m+[m[32m    yookassa_shop_id: str[m
+[32m+[m[32m    yookassa_secret_key: str[m
+[32m+[m[32m    payment_return_url: str[m
+[32m+[m
+ [m
+ def require_env(name: str) -> str:[m
+     value = os.getenv(name)[m
+[36m@@ -48,12 +53,6 @@[m [msettings = Settings([m
+         os.getenv("ADMIN_ID", "0")[m
+     ),[m
+ [m
+[31m-    # Database[m
+[31m-    database_path=os.getenv([m
+[31m-    "DATABASE_PATH",[m
+[31m-    "vpn.db",[m
+[31m-    ),[m
+[31m-[m
+     # 3x-ui[m
+     api_url=require_env("API_URL"),[m
+ [m
+[36m@@ -81,4 +80,23 @@[m [msettings = Settings([m
+             "1",[m
+         )[m
+     ),[m
+[32m+[m
+[32m+[m[32m    # Database[m
+[32m+[m[32m    database_path=os.getenv([m
+[32m+[m[32m        "DATABASE_PATH",[m
+[32m+[m[32m        "vpn.db",[m
+[32m+[m[32m    ),[m
+[32m+[m
+[32m+[m[32m    # YooKassa[m
+[32m+[m[32m    yookassa_shop_id=require_env([m
+[32m+[m[32m        "YOOKASSA_SHOP_ID"[m
+[32m+[m[32m    ),[m
+[32m+[m
+[32m+[m[32m    yookassa_secret_key=require_env([m
+[32m+[m[32m        "YOOKASSA_SECRET_KEY"[m
+[32m+[m[32m    ),[m
+[32m+[m
+[32m+[m[32m    payment_return_url=require_env([m
+[32m+[m[32m        "PAYMENT_RETURN_URL"[m
+[32m+[m[32m    ),[m
+ )[m
+\ No newline at end of file[m
+[1mdiff --git a/app/database/schema.py b/app/database/schema.py[m
+[1mindex a018c94..e920e64 100644[m
+[1m--- a/app/database/schema.py[m
+[1m+++ b/app/database/schema.py[m
+[36m@@ -42,13 +42,40 @@[m [mdef create_tables():[m
+     CREATE TABLE IF NOT EXISTS payments ([m
+         id INTEGER PRIMARY KEY AUTOINCREMENT,[m
+ [m
+[31m-        user_id INTEGER NOT NULL,[m
+[31m-        amount REAL NOT NULL,[m
+[31m-        currency TEXT NOT NULL,[m
+[31m-        status TEXT NOT NULL,[m
+[31m-        provider TEXT NOT NULL,[m
+[31m-        created_at INTEGER NOT NULL,[m
+ [m
+[31m-        FOREIGN KEY(user_id) REFERENCES users(id)[m
+[32m+[m[32m    user_id INTEGER NOT NULL,[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    protocol TEXT NOT NULL,[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    subscription_days INTEGER NOT NULL,[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    amount REAL NOT NULL,[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    currency TEXT NOT NULL,[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    status TEXT NOT NULL,[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    provider TEXT NOT NULL,[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    provider_payment_id TEXT UNIQUE,[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    confirmation_url TEXT,[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    created_at INTEGER NOT NULL,[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    paid_at INTEGER,[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    FOREIGN KEY(user_id) REFERENCES users(id)[m
+     )[m
+     """)[m
+\ No newline at end of file[m
+[1mdiff --git a/app/domain/__init__.py b/app/domain/__init__.py[m
+[1mdeleted file mode 100644[m
+[1mindex e69de29..0000000[m
+[1mdiff --git a/app/domain/enums/__init__.py b/app/domain/enums/__init__.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..cc84b33[m
+[1m--- /dev/null[m
+[1m+++ b/app/domain/enums/__init__.py[m
+[36m@@ -0,0 +1,8 @@[m
+[32m+[m[32mfrom .payment_status import PaymentStatus[m
+[32m+[m[32mfrom .subscription_status import SubscriptionStatus[m
+[32m+[m
+[32m+[m
+[32m+[m[32m__all__ = [[m
+[32m+[m[32m    "PaymentStatus",[m
+[32m+[m[32m    "SubscriptionStatus",[m
+[32m+[m[32m][m
+\ No newline at end of file[m
+[1mdiff --git a/app/domain/enums.py b/app/domain/legacy_enums.py[m
+[1msimilarity index 100%[m
+[1mrename from app/domain/enums.py[m
+[1mrename to app/domain/legacy_enums.py[m
+[1mdiff --git a/app/domain/payment.py b/app/domain/payment.py[m
+[1mindex ecdd954..1fe67d8 100644[m
+[1m--- a/app/domain/payment.py[m
+[1m+++ b/app/domain/payment.py[m
+[36m@@ -9,6 +9,8 @@[m [mclass Payment:[m
+ [m
+     user_id: int[m
+ [m
+[32m+[m[32m    protocol: str[m
+[32m+[m
+     subscription_days: int[m
+ [m
+     amount: float[m
+[1mdiff --git a/app/domain/subscription.py b/app/domain/subscription.py[m
+[1mindex e9bfd88..bbc7844 100644[m
+[1m--- a/app/domain/subscription.py[m
+[1m+++ b/app/domain/subscription.py[m
+[36m@@ -1,7 +1,7 @@[m
+ from dataclasses import dataclass[m
+ from datetime import datetime[m
+ [m
+[31m-from app.domain.enums import SubscriptionStatus[m
+[32m+[m[32mfrom app.domain.enums.subscription_status import SubscriptionStatus[m
+ [m
+ [m
+ @dataclass[m
+[1mdiff --git a/app/payments/yookassa_client.py b/app/payments/yookassa_client.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..1509629[m
+[1m--- /dev/null[m
+[1m+++ b/app/payments/yookassa_client.py[m
+[36m@@ -0,0 +1,47 @@[m
+[32m+[m[32mimport uuid[m
+[32m+[m
+[32m+[m[32mfrom yookassa import Configuration, Payment[m
+[32m+[m
+[32m+[m[32mfrom app.config import settings[m
+[32m+[m
+[32m+[m
+[32m+[m[32mConfiguration.account_id = settings.yookassa_shop_id[m
+[32m+[m[32mConfiguration.secret_key = settings.yookassa_secret_key[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass YooKassaClient:[m
+[32m+[m
+[32m+[m[32m    @staticmethod[m
+[32m+[m[32m    def create_payment([m
+[32m+[m[32m        amount: float,[m
+[32m+[m[32m        description: str,[m
+[32m+[m[32m    ):[m
+[32m+[m
+[32m+[m[32m        payment = Payment.create([m
+[32m+[m[32m            {[m
+[32m+[m[32m                "amount": {[m
+[32m+[m[32m                    "value": f"{amount:.2f}",[m
+[32m+[m[32m                    "currency": "RUB",[m
+[32m+[m[32m                },[m
+[32m+[m[32m                "confirmation": {[m
+[32m+[m[32m                    "type": "redirect",[m
+[32m+[m[32m                    "return_url": settings.payment_return_url,[m
+[32m+[m[32m                },[m
+[32m+[m[32m                "capture": True,[m
+[32m+[m[32m                "description": description,[m
+[32m+[m[32m            },[m
+[32m+[m[32m            uuid.uuid4().hex,[m
+[32m+[m[32m        )[m
+[32m+[m
+[32m+[m[32m        return payment[m
+[32m+[m
+[32m+[m[32m    @staticmethod[m
+[32m+[m[32m    def get_payment(payment_id: str):[m
+[32m+[m[32m        return Payment.find_one(payment_id)[m
+[32m+[m
+[32m+[m[32m    @staticmethod[m
+[32m+[m[32m    def cancel_payment(payment_id: str):[m
+[32m+[m[32m        return Payment.cancel(payment_id)[m
+[32m+[m
+[32m+[m
+[32m+[m[32myookassa_client = YooKassaClient()[m
+\ No newline at end of file[m
+[1mdiff --git a/app/repositories/payment_repository.py b/app/repositories/payment_repository.py[m
+[1mindex b32a919..ca96c67 100644[m
+[1m--- a/app/repositories/payment_repository.py[m
+[1m+++ b/app/repositories/payment_repository.py[m
+[36m@@ -8,88 +8,270 @@[m [mclass PaymentRepository:[m
+ [m
+     @staticmethod[m
+     def _to_entity(row) -> Payment:[m
+[32m+[m
+         return Payment([m
+[32m+[m
+             id=row["id"],[m
+[32m+[m
+             user_id=row["user_id"],[m
+[32m+[m
+[32m+[m[32m            protocol=row["protocol"],[m
+[32m+[m
+[32m+[m[32m            subscription_days=row["subscription_days"],[m
+[32m+[m
+             amount=row["amount"],[m
+[32m+[m
+             currency=row["currency"],[m
+[32m+[m
+             provider=row["provider"],[m
+[32m+[m
+[32m+[m[32m            provider_payment_id=row["provider_payment_id"],[m
+[32m+[m
+[32m+[m[32m            confirmation_url=row["confirmation_url"],[m
+[32m+[m
+             status=row["status"],[m
+[31m-            created_at=datetime.fromtimestamp(row["created_at"]),[m
+[32m+[m
+[32m+[m[32m            created_at=datetime.fromtimestamp([m
+[32m+[m[32m                row["created_at"][m
+[32m+[m[32m            ),[m
+[32m+[m
+[32m+[m[32m            paid_at=([m
+[32m+[m[32m                datetime.fromtimestamp([m
+[32m+[m[32m                    row["paid_at"][m
+[32m+[m[32m                )[m
+[32m+[m[32m                if row["paid_at"][m
+[32m+[m[32m                else None[m
+[32m+[m[32m            ),[m
+         )[m
+ [m
+[32m+[m
+     @staticmethod[m
+[31m-    def create(payment: Payment) -> Payment:[m
+[32m+[m[32m    def create([m
+[32m+[m[32m        payment: Payment,[m
+[32m+[m[32m    ) -> Payment:[m
+[32m+[m
+[32m+[m
+         db.execute([m
+             """[m
+             INSERT INTO payments[m
+             ([m
+                 user_id,[m
+[32m+[m
+[32m+[m[32m                protocol,[m
+[32m+[m
+[32m+[m[32m                subscription_days,[m
+[32m+[m
+                 amount,[m
+[32m+[m
+                 currency,[m
+[32m+[m
+                 provider,[m
+[32m+[m
+[32m+[m[32m                provider_payment_id,[m
+[32m+[m
+[32m+[m[32m                confirmation_url,[m
+[32m+[m
+                 status,[m
+[31m-                created_at[m
+[32m+[m
+[32m+[m[32m                created_at,[m
+[32m+[m
+[32m+[m[32m                paid_at[m
+             )[m
+[31m-            VALUES (?, ?, ?, ?, ?, ?)[m
+[32m+[m
+[32m+[m[32m            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)[m
+[32m+[m
+             """,[m
+[32m+[m
+             ([m
+[32m+[m
+                 payment.user_id,[m
+[32m+[m
+[32m+[m[32m                payment.protocol,[m
+[32m+[m
+[32m+[m[32m                payment.subscription_days,[m
+[32m+[m
+                 payment.amount,[m
+[32m+[m
+                 payment.currency,[m
+[32m+[m
+                 payment.provider,[m
+[32m+[m
+[32m+[m[32m                payment.provider_payment_id,[m
+[32m+[m
+[32m+[m[32m                payment.confirmation_url,[m
+[32m+[m
+                 payment.status,[m
+[31m-                int(payment.created_at.timestamp()),[m
+[32m+[m
+[32m+[m[32m                int([m
+[32m+[m[32m                    payment.created_at.timestamp()[m
+[32m+[m[32m                ),[m
+[32m+[m
+[32m+[m[32m                ([

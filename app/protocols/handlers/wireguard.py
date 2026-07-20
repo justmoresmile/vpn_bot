@@ -6,9 +6,6 @@ from app.domain.inbound import Inbound
 from app.domain.subscription import Subscription
 from app.protocols.handlers.base import ProtocolHandler
 from app.utils.client_email import generate_client_email
-from app.protocols.wireguard.link_parser import wireguard_link_to_config
-
-
 
 
 class WireGuardHandler(ProtocolHandler):
@@ -46,9 +43,6 @@ class WireGuardHandler(ProtocolHandler):
     ) -> str:
 
         return subscription.config
-
-
-
 
     async def create_subscription(
         self,
@@ -103,10 +97,6 @@ class WireGuardHandler(ProtocolHandler):
 
         return subscription
 
-
-
-
-
     async def renew(
         self,
         xui,
@@ -142,7 +132,6 @@ class WireGuardHandler(ProtocolHandler):
             ),
             enable=True,
         )
-
 
         if not updated:
 
@@ -181,7 +170,6 @@ class WireGuardHandler(ProtocolHandler):
         subscription.status = SubscriptionStatus.DISABLED
 
         return subscription
-
 
     async def restore_client(
         self,
@@ -223,8 +211,6 @@ class WireGuardHandler(ProtocolHandler):
         subscription.status = SubscriptionStatus.ACTIVE
 
         return subscription
-
-
 
     async def sync(
         self,
@@ -289,8 +275,6 @@ class WireGuardHandler(ProtocolHandler):
 
         return subscription
 
-
-
     async def delete(
         self,
         xui,
@@ -305,7 +289,7 @@ class WireGuardHandler(ProtocolHandler):
         self,
         xui,
         subscription: Subscription,
-    ):
+    ) -> tuple[str, bytes]:
 
         inbound = await self.get_inbound(
             xui
@@ -316,7 +300,12 @@ class WireGuardHandler(ProtocolHandler):
                 "Inbound 'wireguard' не найден"
             )
 
-        return await xui.get_wireguard_config(
+        config = await xui.get_wireguard_config(
             inbound,
             subscription.client_email,
+        )
+
+        return (
+            f"{subscription.client_email}.conf",
+            config.encode("utf-8"),
         )

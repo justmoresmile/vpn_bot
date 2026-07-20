@@ -4,8 +4,6 @@ from app.domain.subscription import Subscription
 from app.protocols.handlers.base import ProtocolHandler
 from app.repositories.subscription_repository import subscription_repo
 from app.services.xui_client import XUIClient
-from app.protocols.wireguard.link_parser import wireguard_link_to_config
-
 
 class VPNService:
 
@@ -283,91 +281,21 @@ class VPNService:
 
         return subscription.config
 
-
-
-    async def get_wireguard_config(
+    async def get_file(
         self,
         subscription: Subscription,
-    ) -> str:
+    ) -> tuple[str, bytes]:
 
+        handler = ProtocolHandler.create(
+            subscription.protocol
+        )
 
         async with XUIClient() as xui:
 
-
-            inbound = await xui.get_inbound_by_id(
-                subscription.inbound_id
+            return await handler.get_file(
+                xui,
+                subscription,
             )
-
-
-            if inbound is None:
-                raise RuntimeError(
-                    "WireGuard inbound не найден"
-                )
-
-
-            client = await xui.get_wireguard_client(
-                inbound,
-                subscription.client_email,
-            )
-
-
-            if client is None:
-                raise RuntimeError(
-                    "WireGuard клиент не найден"
-                )
-
-
-            links = await xui.get_subscription_links(
-                client["subId"]
-            )
-
-
-            if not links:
-                raise RuntimeError(
-                    "Панель не вернула WireGuard ссылку"
-                )
-
-
-            return wireguard_link_to_config(
-                links[0]
-            )
-
-
-
-    async def get_config_file(
-        self,
-        subscription: Subscription,
-    ) -> bytes:
-
-
-        if subscription.protocol == "wireguard":
-
-
-            config = await self.get_wireguard_config(
-                subscription
-            )
-
-
-            return config.encode(
-                "utf-8"
-            )
-
-
-        config = await self.get_config(
-            subscription.id
-        )
-
-
-        if config is None:
-            raise RuntimeError(
-                "Конфигурация не найдена"
-            )
-
-
-        return config.encode(
-            "utf-8"
-        )
-
 
 
     def get_by_user(
@@ -445,23 +373,6 @@ class VPNService:
 
 
         return synced
-
-
-    async def get_wireguard_file(
-        self,
-        subscription: Subscription,
-    ) -> tuple[str, str]:
-
-        config = await self.get_wireguard_config(subscription)
-
-        filename = (
-            subscription.client_email
-            if subscription.client_email.endswith(".conf")
-            else f"{subscription.client_email}.conf"
-        )
-
-        return filename, config
-
 
 
 

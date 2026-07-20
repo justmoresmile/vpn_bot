@@ -16,13 +16,13 @@ class TelegramService:
 
         try:
 
-            config = await vpn_service.get_config_file(
+            filename, data = await vpn_service.get_file(
                 subscription
             )
 
             file = BufferedInputFile(
-                config,
-                filename=f"{subscription.client_email}.conf",
+                data,
+                filename=filename,
             )
 
             await bot.send_message(
@@ -35,13 +35,11 @@ class TelegramService:
                 parse_mode=ParseMode.HTML,
             )
 
-
             await bot.send_document(
                 chat_id=user_id,
                 document=file,
                 caption="📥 WireGuard конфигурация",
             )
-
 
         except Exception:
 
