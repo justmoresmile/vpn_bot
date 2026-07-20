@@ -16,15 +16,14 @@ class TelegramService:
 
         try:
 
-            filename, config = await vpn_service.get_wireguard_file(
+            config = await vpn_service.get_config_file(
                 subscription
             )
 
             file = BufferedInputFile(
-                config.encode("utf-8"),
-                filename=filename,
+                config,
+                filename=f"{subscription.client_email}.conf",
             )
-
 
             await bot.send_message(
                 chat_id=user_id,
