@@ -1,34 +1,59 @@
 from app.database.database import db
 from app.domain.user import User
+from app.config import settings
 
 
 class UsersRepository:
 
     @staticmethod
     def _to_entity(row) -> User:
+
         return User(
             id=row["id"],
             telegram_id=row["telegram_id"],
             username=row["username"],
             first_name=row["first_name"],
             is_admin=bool(row["is_admin"]),
+            api_key=row["api_key"],
         )
 
+
     @staticmethod
-    def get_by_telegram(telegram_id: int) -> User | None:
+    def get_by_telegram(
+        telegram_id: int,
+    ) -> User | None:
+
         row = db.fetchone(
             """
             SELECT *
             FROM users
             WHERE telegram_id = ?
             """,
-            (telegram_id,),
+            (
+                telegram_id,
+            ),
         )
 
-        return UsersRepository._to_entity(row) if row else None
+        return (
+            UsersRepository._to_entity(row)
+            if row
+            else None
+        )
+
 
     @staticmethod
-    def create(user: User) -> User:
+    def create(
+        user: User,
+    ) -> User:
+
+        import secrets
+
+        api_key = secrets.token_hex(32)
+
+        is_admin = (
+            user.telegram_id == settings.admin_id
+        )
+
         db.execute(
             """
             INSERT INTO users
@@ -36,19 +61,25 @@ class UsersRepository:
                 telegram_id,
                 username,
                 first_name,
-                is_admin
+                is_admin,
+                api_key
             )
-            VALUES (?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?)
             """,
             (
                 user.telegram_id,
                 user.username,
                 user.first_name,
-                int(user.is_admin),
+                int(is_admin),
+                api_key,
             ),
         )
 
-        return UsersRepository.get_by_telegram(user.telegram_id)
+        return UsersRepository.get_by_telegram(
+            user.telegram_id
+        )
+
+
     @staticmethod
     def update_profile(
         telegram_id: int,
@@ -71,18 +102,219 @@ class UsersRepository:
             ),
         )
 
+
     @staticmethod
-    def get_by_id(user_id: int) -> User | None:
+    def get_by_id(
+        user_id: int,
+    ) -> User | None:
+
         row = db.fetchone(
             """
             SELECT *
             FROM users
             WHERE id = ?
             """,
-            (user_id,),
+            (
+                user_id,
+            ),
         )
 
-        return UsersRepository._to_entity(row) if row else None
+        return (
+            UsersRepository._to_entity(row)
+            if row
+            else None
+        )
+
+
+    @staticmethod
+    def get_by_api_key(
+        api_key: str,
+    ) -> User | None:
+
+        row = db.fetchone(
+            """
+            SELECT *
+            FROM users
+            WHERE api_key = ?
+            """,
+            (
+                api_key,
+            ),
+        )
+
+        return (
+            UsersRepository._to_entity(row)
+            if row
+            else None
+        )
+
+
+    @staticmethod
+    def get_all() -> list[User]:
+
+        rows = db.fetchall(
+            """
+            SELECT *
+            FROM users
+            ORDER BY id DESC
+            """
+        )
+
+        return [
+            UsersRepository._to_entity(row)
+            for row in rows
+        ]
+
+
+    @staticmethod
+    def count() -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM users
+            """
+        )
+
+        return row["total"]
+
+
+    @staticmethod
+    def search(
+        query: str,
+    ) -> list[User]:
+
+        rows = db.fetchall(
+            """
+            SELECT *
+            FROM users
+            WHERE
+
+                username LIKE ?
+
+                OR
+
+                first_name LIKE ?
+
+                OR
+
+                telegram_id LIKE ?
+
+            ORDER BY id DESC
+            """,
+            (
+                f"%{query}%",
+                f"%{query}%",
+                f"%{query}%",
+            ),
+        )
+
+        return [
+            UsersRepository._to_entity(row)
+            for row in rows
+        ]
+
+
+
+    # ==============================
+    # ADMIN FILTERS
+    # ==============================
+
+
+    @staticmethod
+    def get_admins() -> list[User]:
+
+        rows = db.fetchall(
+            """
+            SELECT *
+            FROM users
+            WHERE is_admin = 1
+            ORDER BY id DESC
+            """
+        )
+
+        return [
+            UsersRepository._to_entity(row)
+            for row in rows
+        ]
+
+
+
+    @staticmethod
+    def get_without_subscription() -> list[User]:
+
+        rows = db.fetchall(
+            """
+            SELECT *
+            FROM users u
+
+            WHERE NOT EXISTS (
+
+                SELECT 1
+                FROM subscriptions s
+                WHERE s.user_id = u.id
+
+            )
+
+            ORDER BY u.id DESC
+            """
+        )
+
+        return [
+            UsersRepository._to_entity(row)
+            for row in rows
+        ]
+
+
+
+    @staticmethod
+    def get_active_subscription_users() -> list[User]:
+
+        rows = db.fetchall(
+            """
+            SELECT DISTINCT u.*
+
+            FROM users u
+
+            JOIN subscriptions s
+            ON s.user_id = u.id
+
+            WHERE s.status = 'active'
+
+            ORDER BY u.id DESC
+            """
+        )
+
+        return [
+            UsersRepository._to_entity(row)
+            for row in rows
+        ]
+
+
+
+    @staticmethod
+    def get_expired_subscription_users() -> list[User]:
+
+        rows = db.fetchall(
+            """
+            SELECT DISTINCT u.*
+
+            FROM users u
+
+            JOIN subscriptions s
+            ON s.user_id = u.id
+
+            WHERE s.status = 'expired'
+
+            ORDER BY u.id DESC
+            """
+        )
+
+        return [
+            UsersRepository._to_entity(row)
+            for row in rows
+        ]
+
 
 
 users_repo = UsersRepository()

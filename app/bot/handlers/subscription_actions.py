@@ -1,33 +1,30 @@
 from datetime import datetime
 
 from aiogram import F, Router
-from aiogram.types import CallbackQuery, BufferedInputFile
+from aiogram.types import (
+    CallbackQuery,
+    BufferedInputFile,
+)
 
-from app.repositories.subscription_repository import subscription_repo
-from app.services.vpn_service import vpn_service
-from app.services.qr_service import qr_service
+from app.bot.clients.api_client import api_client
 from app.bot.keyboards.subscription_menu import (
     subscription_actions_menu,
-    renew_menu,
 )
+from app.bot.keyboards.tariff_menu import tariff_menu
+
+from app.ui.screens_old import my_vpn_screen
 
 
 router = Router()
 
 
-
-def get_subscription(
+def get_subscription_id(
     callback: CallbackQuery,
-):
+) -> int:
 
-    subscription_id = int(
+    return int(
         callback.data.split(":")[1]
     )
-
-    return subscription_repo.get_by_id(
-        subscription_id
-    )
-
 
 
 @router.callback_query(
@@ -37,67 +34,58 @@ async def select_subscription(
     callback: CallbackQuery,
 ):
 
-    subscription = get_subscription(
+    subscription_id = get_subscription_id(
         callback
     )
 
+    subscription = await api_client.get_subscription(
+        telegram_id=callback.from_user.id,
+        subscription_id=subscription_id,
+    )
 
-    if subscription is None:
+    expires = datetime.fromisoformat(
+        subscription["expires_at"]
+    )
 
-        await callback.answer(
-            "VPN не найден",
-            show_alert=True,
-        )
-
-        return
-
-
+    created = datetime.fromisoformat(
+        subscription["created_at"]
+    )
 
     days_left = max(
         0,
         (
-            subscription.expires_at
-            -
-            datetime.now()
+            expires - datetime.now()
         ).days,
     )
 
-
-
     total_days = (
-        subscription.expires_at
-        -
-        subscription.created_at
+        expires - created
     ).days
 
-
+    status = (
+        "🟢 Активен"
+        if days_left > 0
+        else "🔴 Истёк"
+    )
 
     await callback.message.answer(
-        (
-            "👤 <b>Мой VPN</b>\n\n"
-
-            "🔐 <b>Статус:</b>\n"
-            "✅ Активен\n\n"
-
-            "📦 <b>Подписка:</b>\n"
-            f"{total_days} дней\n\n"
-
-            "⏳ <b>Действует до:</b>\n"
-            f"{subscription.expires_at.strftime('%d.%m.%Y %H:%M')}\n\n"
-
-            "⌛ <b>Осталось:</b>\n"
-            f"{days_left} дней"
+        my_vpn_screen(
+            status=status,
+            days=total_days,
+            expires=expires.strftime(
+                "%d.%m.%Y %H:%M"
+            ),
+            left=days_left,
+            protocol=subscription["protocol"].title(),
+            server="Россия",
         ),
         parse_mode="HTML",
         reply_markup=subscription_actions_menu(
-            subscription,
+            subscription
         ),
     )
 
-
     await callback.answer()
-
-
 
 
 @router.callback_query(
@@ -107,36 +95,41 @@ async def qr(
     callback: CallbackQuery,
 ):
 
-    subscription = get_subscription(
-        callback
-    )
+    try:
 
+        subscription_id = get_subscription_id(
+            callback
+        )
 
-    if subscription is None:
-        return
+        image = await api_client.get_qr(
+            telegram_id=callback.from_user.id,
+            subscription_id=subscription_id,
+        )
 
+        await callback.message.answer_photo(
+            BufferedInputFile(
+                image,
+                filename="vpn_qr.png",
+            ),
+            caption="📷 QR-код WireGuard",
+        )
 
+    except Exception:
 
-    config = await vpn_service.get_wireguard_config(
-        subscription
-    )
+        from app.logger import logger
 
+        logger.exception(
+            "QR download failed"
+        )
 
-    photo = qr_service.generate(
-        config
-    )
+        await callback.answer(
+            "Не удалось получить QR",
+            show_alert=True,
+        )
 
+    else:
 
-    await callback.message.answer_photo(
-        photo,
-        caption="📷 WireGuard QR-код",
-    )
-
-
-    await callback.answer()
-
-
-
+        await callback.answer()
 
 @router.callback_query(
     F.data.startswith("subscription_config:")
@@ -145,36 +138,24 @@ async def config(
     callback: CallbackQuery,
 ):
 
-    subscription = get_subscription(
+    subscription_id = get_subscription_id(
         callback
     )
 
-
-    if subscription is None:
-        return
-
-
-
-    config = await vpn_service.get_wireguard_config(
-        subscription
+    content = await api_client.download_file(
+        telegram_id=callback.from_user.id,
+        subscription_id=subscription_id,
     )
-
-
-    file = BufferedInputFile(
-        config.encode("utf-8"),
-        filename=f"{subscription.client_email}.conf",
-    )
-
 
     await callback.message.answer_document(
-        document=file,
-        caption="📥 WireGuard конфигурация",
+        BufferedInputFile(
+            content,
+            filename=f"wireguard-{subscription_id}.conf",
+        ),
+        caption="📥 Конфигурационный файл",
     )
 
-
     await callback.answer()
-
-
 
 
 @router.callback_query(
@@ -184,117 +165,39 @@ async def renew(
     callback: CallbackQuery,
 ):
 
-    subscription = get_subscription(
+    subscription_id = get_subscription_id(
         callback
     )
 
-
-    if subscription is None:
-        return
-
-
-
     await callback.message.answer(
-        "📅 Выберите срок продления",
-        reply_markup=renew_menu(
-            subscription.id,
+        "Выберите срок продления:",
+        reply_markup=tariff_menu(
+            renew=True,
+            subscription_id=subscription_id,
         ),
     )
 
+    async def get_qr(
+        self,
+        telegram_id: int,
+        subscription_id: int,
+    ):
 
-    await callback.answer()
+        async with httpx.AsyncClient(
+            timeout=10
+        ) as client:
 
+            response = await client.get(
+                f"{self.base_url}/api/v1/subscription/{subscription_id}/qr",
+                headers=await self._headers(
+                    telegram_id
+                ),
+            )
 
+            response.raise_for_status()
 
+            return response.content
 
-async def do_renew(
-    callback: CallbackQuery,
-    days: int,
-):
-
-    subscription = get_subscription(
-        callback
-    )
-
-
-    if subscription is None:
-        return
-
-
-
-    subscription = await vpn_service.renew(
-        subscription.id,
-        days,
-    )
-
-
-
-    await callback.message.answer(
-        "✅ VPN продлён\n\n"
-        "⏳ Действует до:\n"
-        f"<b>{subscription.expires_at.strftime('%d.%m.%Y %H:%M')}</b>",
-        parse_mode="HTML",
-    )
 
 
     await callback.answer()
-
-
-
-
-@router.callback_query(
-    F.data.startswith("renew_30:")
-)
-async def renew30(
-    callback: CallbackQuery,
-):
-
-    await do_renew(
-        callback,
-        30,
-    )
-
-
-
-
-@router.callback_query(
-    F.data.startswith("renew_90:")
-)
-async def renew90(
-    callback: CallbackQuery,
-):
-
-    await do_renew(
-        callback,
-        90,
-    )
-
-
-
-
-@router.callback_query(
-    F.data.startswith("renew_180:")
-)
-async def renew180(
-    callback: CallbackQuery,
-):
-
-    await do_renew(
-        callback,
-        180,
-    )
-
-
-
-
-@router.callback_query(
-    F.data.startswith("renew_365:")
-)
-async def renew365(
-    callback: CallbackQuery,
-):
-
-    await do_renew(
-        callback,
-        365,
-    )

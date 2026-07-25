@@ -10,7 +10,7 @@ class Subscription:
     id: int | None
 
     user_id: int
-
+    server_id: int
     protocol: str
     inbound_id: int
 

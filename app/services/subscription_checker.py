@@ -1,8 +1,11 @@
 from loguru import logger
 
-from app.repositories.subscription_repository import subscription_repo
-from app.services.xui_client import XUIClient
-from app.domain.legacy_enums import SubscriptionStatus
+from app.repositories.subscription_repository import (
+    subscription_repo,
+)
+from app.services.vpn_service import (
+    vpn_service,
+)
 
 
 class SubscriptionChecker:
@@ -26,54 +29,25 @@ class SubscriptionChecker:
             len(subscriptions),
         )
 
-        xui = XUIClient()
+        for subscription in subscriptions:
 
-        try:
+            try:
 
-            for subscription in subscriptions:
+                await vpn_service.disable(
+                    subscription
+                )
 
-                try:
+                logger.info(
+                    "Subscription {} expired.",
+                    subscription.id,
+                )
 
-                    inbound = await xui.get_inbound(
-                        subscription.protocol
-                    )
+            except Exception:
 
-                    if inbound is None:
-
-                        logger.warning(
-                            "Inbound '{}' not found.",
-                            subscription.protocol,
-                        )
-
-                        continue
-
-                    await xui.set_client_enabled(
-                        inbound=inbound,
-                        client_uuid=subscription.client_id,
-                        enabled=False,
-                    )
-
-                    subscription.status = SubscriptionStatus.EXPIRED
-
-                    subscription_repo.update(
-                        subscription
-                    )
-
-                    logger.info(
-                        "Subscription {} expired.",
-                        subscription.id,
-                    )
-
-                except Exception:
-
-                    logger.exception(
-                        "Failed to expire subscription {}",
-                        subscription.id,
-                    )
-
-        finally:
-
-            await xui.close()
+                logger.exception(
+                    "Failed to expire subscription {}",
+                    subscription.id,
+                )
 
 
 subscription_checker = SubscriptionChecker()

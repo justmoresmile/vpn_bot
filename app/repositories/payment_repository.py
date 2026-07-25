@@ -1,10 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.database.database import db
 from app.domain.payment import Payment
+from app.domain.enums.payment_status import PaymentStatus
 
 
 class PaymentRepository:
+
 
     @staticmethod
     def _to_entity(row) -> Payment:
@@ -19,6 +21,8 @@ class PaymentRepository:
 
             subscription_days=row["subscription_days"],
 
+            subscription_id=row["subscription_id"],
+
             amount=row["amount"],
 
             currency=row["currency"],
@@ -29,7 +33,9 @@ class PaymentRepository:
 
             confirmation_url=row["confirmation_url"],
 
-            status=row["status"],
+            status=PaymentStatus(
+                row["status"]
+            ),
 
             created_at=datetime.fromtimestamp(
                 row["created_at"]
@@ -45,6 +51,7 @@ class PaymentRepository:
         )
 
 
+
     @staticmethod
     def create(
         payment: Payment,
@@ -56,29 +63,20 @@ class PaymentRepository:
             INSERT INTO payments
             (
                 user_id,
-
                 protocol,
-
                 subscription_days,
-
+                subscription_id,
                 amount,
-
                 currency,
-
                 provider,
-
                 provider_payment_id,
-
                 confirmation_url,
-
                 status,
-
                 created_at,
-
                 paid_at
             )
 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
             """,
 
@@ -89,6 +87,8 @@ class PaymentRepository:
                 payment.protocol,
 
                 payment.subscription_days,
+
+                payment.subscription_id,
 
                 payment.amount,
 
@@ -132,6 +132,7 @@ class PaymentRepository:
         )
 
 
+
     @staticmethod
     def get_by_id(
         payment_id: int,
@@ -161,6 +162,7 @@ class PaymentRepository:
         )
 
 
+
     @staticmethod
     def get_by_provider_payment_id(
         provider_payment_id: str,
@@ -188,6 +190,7 @@ class PaymentRepository:
             if row
             else None
         )
+
 
 
     @staticmethod
@@ -220,6 +223,32 @@ class PaymentRepository:
         ]
 
 
+
+    @staticmethod
+    def get_pending() -> list[Payment]:
+
+
+        rows = db.fetchall(
+            """
+            SELECT *
+
+            FROM payments
+
+            WHERE status = 'pending'
+
+            ORDER BY created_at ASC
+
+            """
+        )
+
+
+        return [
+            PaymentRepository._to_entity(row)
+            for row in rows
+        ]
+
+
+
     @staticmethod
     def update_status(
         payment_id: int,
@@ -247,6 +276,7 @@ class PaymentRepository:
         )
 
 
+
     @staticmethod
     def mark_paid(
         payment_id: int,
@@ -268,6 +298,7 @@ class PaymentRepository:
             """,
 
             (
+
                 int(
                     datetime.now().timestamp()
                 ),
@@ -275,6 +306,226 @@ class PaymentRepository:
                 payment_id,
             ),
         )
+
+
+
+    @staticmethod
+    def mark_failed(
+        payment_id: int,
+    ):
+
+
+        db.execute(
+            """
+            UPDATE payments
+
+            SET
+
+                status = 'failed'
+
+            WHERE id = ?
+
+            """,
+
+            (
+                payment_id,
+            ),
+        )
+
+
+
+    @staticmethod
+    def mark_canceled(
+        payment_id: int,
+    ):
+
+
+        db.execute(
+            """
+            UPDATE payments
+
+            SET
+
+                status = 'canceled'
+
+            WHERE id = ?
+
+            """,
+
+            (
+                payment_id,
+            ),
+        )
+
+
+
+    @staticmethod
+    def expire_old_pending(
+        hours: int = 24,
+    ):
+
+
+        limit = int(
+            (
+                datetime.now()
+                -
+                timedelta(
+                    hours=hours
+                )
+            ).timestamp()
+        )
+
+
+        db.execute(
+            """
+            UPDATE payments
+
+            SET
+
+                status = 'expired'
+
+            WHERE status = 'pending'
+
+            AND created_at < ?
+
+            """,
+
+            (
+                limit,
+            ),
+        )
+
+
+
+    @staticmethod
+    def get_all(
+        limit: int = 10,
+        offset: int = 0,
+    ) -> list[Payment]:
+
+        rows = db.fetchall(
+            """
+            SELECT *
+
+            FROM payments
+
+            ORDER BY created_at DESC
+
+            LIMIT ?
+            OFFSET ?
+
+            """,
+
+            (
+                limit,
+                offset,
+            ),
+        )
+
+
+        return [
+            PaymentRepository._to_entity(row)
+            for row in rows
+        ]
+
+
+
+    @staticmethod
+    def count() -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM payments
+            """
+        )
+
+        return row["total"]
+
+
+    @staticmethod
+    def count_paid() -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM payments
+            WHERE status = 'paid'
+            """
+        )
+
+        return row["total"]
+
+
+    @staticmethod
+    def total_income() -> float:
+
+        row = db.fetchone(
+            """
+            SELECT
+                COALESCE(SUM(amount), 0) AS total
+            FROM payments
+            WHERE status = 'paid'
+            """
+        )
+
+        return row["total"]
+
+
+    @staticmethod
+    def today_income() -> float:
+
+        from datetime import datetime
+
+        start = datetime.now().replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
+        row = db.fetchone(
+            """
+            SELECT
+                COALESCE(SUM(amount), 0) AS total
+            FROM payments
+            WHERE status = 'paid'
+            AND paid_at >= ?
+            """,
+            (
+                int(start.timestamp()),
+            ),
+        )
+
+        return row["total"]
+
+
+    @staticmethod
+    def today_paid() -> int:
+
+        from datetime import datetime
+
+        start = datetime.now().replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM payments
+            WHERE status = 'paid'
+            AND paid_at >= ?
+            """,
+            (
+                int(start.timestamp()),
+            ),
+        )
+
+        return row["total"]
+
 
 
 payment_repo = PaymentRepository()

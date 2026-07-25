@@ -13,7 +13,10 @@ class Payment:
 
     subscription_days: int
 
+    subscription_id: int | None
+
     amount: float
+
     currency: str
 
     provider: str

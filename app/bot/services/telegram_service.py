@@ -1,45 +1,90 @@
 from aiogram.enums import ParseMode
-from aiogram.types import BufferedInputFile
+
+from aiogram.types import (
+    BufferedInputFile,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 
 from app.bot.bot_instance import bot
+
+from app.bot.clients.api_client import api_client
+
 from app.logger import logger
-from app.services.vpn_service import vpn_service
+
+from app.ui.screens_old import (
+    payment_success_screen,
+)
+import re
+def safe_filename(value: str) -> str:
+    return re.sub(
+        r"[^a-zA-Z0-9_-]",
+        "_",
+        value,
+    )
+
 
 
 class TelegramService:
+
 
     async def send_subscription(
         self,
         user_id: int,
         subscription,
     ) -> None:
+        logger.info(
+        f"send_subscription() called for user {user_id}"
+        )
 
         try:
 
-            filename, data = await vpn_service.get_file(
-                subscription
+            subscription_id = (
+                subscription["id"]
+                if isinstance(subscription, dict)
+                else subscription.id
             )
+
+
+            data = await api_client.download_file(
+                telegram_id=user_id,
+                subscription_id=subscription_id,
+            )
+
+
+            filename = (
+                f"JustVPN_"
+                f"{safe_filename(subscription.client_email)}"
+                f".conf"
+            )
+
 
             file = BufferedInputFile(
                 data,
                 filename=filename,
             )
 
-            await bot.send_message(
-                chat_id=user_id,
-                text=(
-                    "✅ <b>Оплата успешно получена!</b>\n\n"
-                    "🔐 Ваш VPN готов.\n\n"
-                    "📁 Конфигурационный файл отправлен ниже."
-                ),
-                parse_mode=ParseMode.HTML,
+
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="📖 Как подключить VPN",
+                            callback_data="vpn_instruction",
+                        )
+                    ]
+                ]
             )
+
 
             await bot.send_document(
                 chat_id=user_id,
                 document=file,
-                caption="📥 WireGuard конфигурация",
+                caption=payment_success_screen(),
+                parse_mode=ParseMode.HTML,
+                reply_markup=keyboard,
             )
+
 
         except Exception:
 
@@ -49,6 +94,7 @@ class TelegramService:
             )
 
             raise
+
 
 
 telegram_service = TelegramService()

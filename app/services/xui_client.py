@@ -10,6 +10,7 @@ from app.exceptions import (
     XUIRequestError,
     XUIResponseError,
 )
+from app.domain.server import Server
 
 
 class XUIClient:
@@ -24,13 +25,18 @@ class XUIClient:
     Отвечает только за API панели.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        server: Server,
+    ):
+
+        self.server = server
 
         self.client = httpx.AsyncClient(
-            base_url=settings.api_url,
+            base_url=server.api_url,
             headers={
                 "Authorization": (
-                    f"Bearer {settings.api_token}"
+                    f"Bearer {server.api_token}"
                 ),
                 "Accept": "application/json",
                 "Content-Type": "application/json",
@@ -38,7 +44,6 @@ class XUIClient:
             verify=False,
             timeout=30,
         )
-
 
     async def close(self):
 
@@ -327,21 +332,27 @@ class XUIClient:
 
 
     async def delete_client(
-            self,
-            client_uuid: str,
-        ):
+        self,
+        inbound_id: int,
+        client_uuid: str,
+    ):
+        """
+        Удаление клиента из 3x-ui
+        """
+
+        await self._request(
+            "POST",
+            "/panel/api/clients/del",
+            json={
+                "id": client_uuid,
+                "inboundId": inbound_id,
+            },
+        )
 
 
-            await self._request(
-                "POST",
-                f"/panel/api/clients/del/{client_uuid}",
-            )
-
-
-            logger.info(
-                f"Client deleted {client_uuid}"
-            )
-
+        logger.info(
+            f"Client deleted {client_uuid}"
+        )
 
     async def update_client(
         self,
@@ -551,4 +562,59 @@ class XUIClient:
 
         return wireguard_link_to_config(
             links[0]
+        )
+
+    async def delete_wireguard_client(
+        self,
+        inbound: Inbound,
+        email: str,
+    ):
+
+        inbound = await self.refresh_inbound(
+            inbound
+        )
+
+        if inbound is None:
+            return
+
+
+        clients = (
+            inbound.raw
+            .get("settings", {})
+            .get("clients", [])
+        )
+
+
+        client = next(
+            (
+                c
+                for c in clients
+                if c.get("email") == email
+            ),
+            None,
+        )
+
+
+        if client is None:
+            logger.warning(
+                f"WireGuard client not found {email}"
+            )
+            return
+
+
+        client_id = client.get("id")
+
+
+        await self._request(
+            "POST",
+            "/panel/api/clients/del",
+            json={
+                "id": client_id,
+                "inboundId": inbound.id,
+            },
+        )
+
+
+        logger.info(
+            f"WireGuard client deleted {email}"
         )

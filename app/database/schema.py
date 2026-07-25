@@ -9,20 +9,49 @@ def create_tables():
         telegram_id INTEGER UNIQUE NOT NULL,
         username TEXT,
         first_name TEXT,
+        api_key TEXT,
         is_admin INTEGER DEFAULT 0
     )
     """)
 
     db.execute("""
+    CREATE TABLE IF NOT EXISTS servers (
+
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        name TEXT NOT NULL,
+
+        country TEXT NOT NULL,
+
+        host TEXT NOT NULL,
+
+        api_url TEXT NOT NULL,
+
+        api_token TEXT NOT NULL,
+
+        wireguard_inbound_id INTEGER NOT NULL,
+
+        enabled INTEGER NOT NULL DEFAULT 1,
+
+        priority INTEGER NOT NULL DEFAULT 100
+    )
+    """)
+
+    db.execute("""
     CREATE TABLE IF NOT EXISTS subscriptions (
+
         id INTEGER PRIMARY KEY AUTOINCREMENT,
 
         user_id INTEGER NOT NULL,
 
+        server_id INTEGER NOT NULL,
+
         protocol TEXT NOT NULL,
+
         inbound_id INTEGER NOT NULL,
 
         client_uuid TEXT NOT NULL,
+
         client_email TEXT NOT NULL,
 
         sub_id TEXT,
@@ -32,50 +61,50 @@ def create_tables():
         status TEXT NOT NULL,
 
         created_at INTEGER NOT NULL,
+
         expires_at INTEGER NOT NULL,
 
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        FOREIGN KEY(user_id)
+            REFERENCES users(id),
+
+        FOREIGN KEY(server_id)
+            REFERENCES servers(id)
     )
     """)
 
     db.execute("""
     CREATE TABLE IF NOT EXISTS payments (
+
         id INTEGER PRIMARY KEY AUTOINCREMENT,
 
+        user_id INTEGER NOT NULL,
 
-    user_id INTEGER NOT NULL,
+        protocol TEXT NOT NULL,
 
+        subscription_days INTEGER NOT NULL,
 
-    protocol TEXT NOT NULL,
+        subscription_id INTEGER,
 
+        amount REAL NOT NULL,
 
-    subscription_days INTEGER NOT NULL,
+        currency TEXT NOT NULL,
 
+        status TEXT NOT NULL,
 
-    amount REAL NOT NULL,
+        provider TEXT NOT NULL,
 
+        provider_payment_id TEXT UNIQUE,
 
-    currency TEXT NOT NULL,
+        confirmation_url TEXT,
 
+        created_at INTEGER NOT NULL,
 
-    status TEXT NOT NULL,
+        paid_at INTEGER,
 
+        FOREIGN KEY(user_id)
+            REFERENCES users(id),
 
-    provider TEXT NOT NULL,
-
-
-    provider_payment_id TEXT UNIQUE,
-
-
-    confirmation_url TEXT,
-
-
-    created_at INTEGER NOT NULL,
-
-
-    paid_at INTEGER,
-
-
-    FOREIGN KEY(user_id) REFERENCES users(id)
+        FOREIGN KEY(subscription_id)
+            REFERENCES subscriptions(id)
     )
     """)

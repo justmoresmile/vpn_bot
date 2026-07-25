@@ -12,9 +12,9 @@ class Settings:
     bot_token: str
     admin_id: int
 
-    # 3x-ui
-    api_url: str
-    api_token: str
+    # 3x-ui (используется для первичного seed или совместимости)
+    xui_api_url: str
+    xui_api_token: str
 
     # VPN
     vpn_host: str
@@ -22,8 +22,10 @@ class Settings:
     vpn_country: str
     vpn_wg_dns: str
 
+    # Protocols
+    enable_vless: bool
     # Inbounds
-    vpn_vless_inbound: int
+    wireguard_inbound_id: int
 
     # Database
     database_path: str
@@ -32,6 +34,18 @@ class Settings:
     yookassa_shop_id: str
     yookassa_secret_key: str
     payment_return_url: str
+
+    # JWT
+    jwt_secret: str
+    jwt_algorithm: str
+    jwt_expire_days: int
+
+    # Backend API
+    backend_api_url: str
+    backend_api_key: str
+
+    # Debug
+    debug: bool
 
 
 def require_env(name: str) -> str:
@@ -47,21 +61,34 @@ def require_env(name: str) -> str:
 
 settings = Settings(
     # Telegram
-    bot_token=require_env("BOT_TOKEN"),
+    bot_token=require_env(
+        "BOT_TOKEN"
+    ),
 
     admin_id=int(
-        os.getenv("ADMIN_ID", "0")
+        os.getenv(
+            "ADMIN_ID",
+            "0",
+        )
     ),
 
     # 3x-ui
-    api_url=require_env("API_URL"),
+    xui_api_url=require_env(
+        "XUI_API_URL"
+    ),
 
-    api_token=require_env("API_TOKEN"),
+    xui_api_token=require_env(
+        "XUI_API_TOKEN"
+    ),
 
     # VPN
-    vpn_host=require_env("VPN_HOST"),
+    vpn_host=require_env(
+        "VPN_HOST"
+    ),
 
-    vpn_name=require_env("VPN_NAME"),
+    vpn_name=require_env(
+        "VPN_NAME"
+    ),
 
     vpn_country=os.getenv(
         "VPN_COUNTRY",
@@ -73,10 +100,16 @@ settings = Settings(
         "1.1.1.1",
     ),
 
-    # Inbounds
-    vpn_vless_inbound=int(
-        os.getenv(
-            "VPN_VLESS_INBOUND",
+    # Protocols
+    enable_vless=os.getenv(
+        "ENABLE_VLESS",
+        "false",
+    ).lower() == "true",
+
+
+    wireguard_inbound_id=int(
+    os.getenv(
+            "VPN_WIREGUARD_INBOUND",
             "1",
         )
     ),
@@ -99,4 +132,36 @@ settings = Settings(
     payment_return_url=require_env(
         "PAYMENT_RETURN_URL"
     ),
+
+    # JWT
+    jwt_secret=require_env(
+        "JWT_SECRET"
+    ),
+
+    jwt_algorithm=os.getenv(
+        "JWT_ALGORITHM",
+        "HS256",
+    ),
+
+    jwt_expire_days=int(
+        os.getenv(
+            "JWT_EXPIRE_DAYS",
+            "30",
+        )
+    ),
+
+    # Backend API
+    backend_api_url=require_env(
+        "BACKEND_API_URL"
+    ),
+
+    backend_api_key=require_env(
+        "BACKEND_API_KEY"
+    ),
+
+    # Debug
+    debug=os.getenv(
+        "DEBUG",
+        "false",
+    ).lower() == "true",
 )

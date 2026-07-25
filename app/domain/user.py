@@ -11,3 +11,4 @@ class User:
     first_name: str | None
 
     is_admin: bool = False
+    api_key: str | None = None

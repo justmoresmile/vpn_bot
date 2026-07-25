@@ -5,6 +5,7 @@ class SubscriptionStatus(StrEnum):
     ACTIVE = "active"
     DISABLED = "disabled"
     EXPIRED = "expired"
+    DELETED = "deleted"
 
 
 class PaymentStatus(StrEnum):

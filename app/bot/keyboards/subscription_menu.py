@@ -4,17 +4,29 @@ from aiogram.types import (
 )
 
 
+def _subscription_id(subscription):
+
+    if isinstance(subscription, dict):
+        return subscription["id"]
+
+    return subscription.id
+
+
 def subscriptions_list_menu(subscriptions):
 
     keyboard = []
 
-    for sub in subscriptions:
+    for subscription in subscriptions:
+
+        subscription_id = _subscription_id(
+            subscription
+        )
 
         keyboard.append(
             [
                 InlineKeyboardButton(
                     text="👤 Мой VPN",
-                    callback_data=f"select_subscription:{sub.id}",
+                    callback_data=f"select_subscription:{subscription_id}",
                 )
             ]
         )
@@ -24,10 +36,11 @@ def subscriptions_list_menu(subscriptions):
     )
 
 
+def subscription_actions_menu(subscription):
 
-def subscription_actions_menu(
-    subscription,
-):
+    subscription_id = _subscription_id(
+        subscription
+    )
 
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -35,72 +48,22 @@ def subscription_actions_menu(
             [
                 InlineKeyboardButton(
                     text="📥 Скачать конфиг",
-                    callback_data=(
-                        f"subscription_config:{subscription.id}"
-                    ),
+                    callback_data=f"subscription_config:{subscription_id}",
                 )
             ],
 
             [
                 InlineKeyboardButton(
                     text="📷 QR-код",
-                    callback_data=(
-                        f"subscription_qr:{subscription.id}"
-                    ),
+                    callback_data=f"subscription_qr:{subscription_id}",
                 )
             ],
 
             [
                 InlineKeyboardButton(
                     text="🔄 Продлить",
-                    callback_data=(
-                        f"subscription_renew:{subscription.id}"
-                    ),
+                    callback_data=f"subscription_renew:{subscription_id}",
                 )
-            ],
-
-        ]
-    )
-
-
-
-def renew_menu(
-    subscription_id: int,
-):
-
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-
-            [
-                InlineKeyboardButton(
-                    text="30 дней",
-                    callback_data=(
-                        f"renew_30:{subscription_id}"
-                    ),
-                ),
-
-                InlineKeyboardButton(
-                    text="90 дней",
-                    callback_data=(
-                        f"renew_90:{subscription_id}"
-                    ),
-                ),
-            ],
-
-            [
-                InlineKeyboardButton(
-                    text="180 дней",
-                    callback_data=(
-                        f"renew_180:{subscription_id}"
-                    ),
-                ),
-
-                InlineKeyboardButton(
-                    text="365 дней",
-                    callback_data=(
-                        f"renew_365:{subscription_id}"
-                    ),
-                ),
             ],
 
         ]

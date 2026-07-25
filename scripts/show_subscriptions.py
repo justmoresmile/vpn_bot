@@ -3,7 +3,7 @@ from pprint import pprint
 
 rows = db.fetchall(
     """
-    SELEC
+    SELECT
         id,
         user_id,
         client_email,

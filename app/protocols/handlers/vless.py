@@ -449,3 +449,20 @@ class VLESSHandler(
         await xui.delete_client(
             subscription.client_id
         )
+
+    async def get_file(
+        self,
+        xui,
+        subscription: Subscription,
+    ) -> tuple[str, bytes]:
+
+        filename = (
+            subscription.client_email
+            if subscription.client_email.endswith(".txt")
+            else f"{subscription.client_email}.txt"
+        )
+
+        return (
+            filename,
+            subscription.config.encode("utf-8"),
+        )

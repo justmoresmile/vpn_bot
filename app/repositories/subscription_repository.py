@@ -13,6 +13,7 @@ class SubscriptionRepository:
         return Subscription(
             id=row["id"],
             user_id=row["user_id"],
+            server_id=row["server_id"],
             protocol=row["protocol"],
             inbound_id=row["inbound_id"],
             client_id=row["client_uuid"],
@@ -34,6 +35,8 @@ class SubscriptionRepository:
             ),
         )
 
+
+
     @staticmethod
     def create(
         subscription: Subscription,
@@ -44,6 +47,7 @@ class SubscriptionRepository:
             INSERT INTO subscriptions
             (
                 user_id,
+                server_id,
                 protocol,
                 inbound_id,
                 client_uuid,
@@ -54,10 +58,11 @@ class SubscriptionRepository:
                 created_at,
                 expires_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 subscription.user_id,
+                subscription.server_id,
                 subscription.protocol,
                 subscription.inbound_id,
                 subscription.client_id,
@@ -113,15 +118,20 @@ class SubscriptionRepository:
             SELECT *
             FROM subscriptions
             WHERE user_id = ?
+            AND status != ?
             ORDER BY created_at DESC
             """,
-            (user_id,),
+            (
+                user_id,
+                SubscriptionStatus.DELETED,
+            ),
         )
 
         return [
             SubscriptionRepository._to_entity(row)
             for row in rows
         ]
+
 
     @staticmethod
     def get_active_by_user(
@@ -178,6 +188,29 @@ class SubscriptionRepository:
 
         return SubscriptionRepository._to_entity(row)
 
+
+    @staticmethod
+    def get_active(
+    ) -> list[Subscription]:
+
+        rows = db.fetchall(
+            """
+            SELECT *
+            FROM subscriptions
+            WHERE status = ?
+            ORDER BY expires_at
+            """,
+            (
+                SubscriptionStatus.ACTIVE,
+            ),
+        )
+
+        return [
+            SubscriptionRepository._to_entity(row)
+            for row in rows
+        ]
+
+
     @staticmethod
     def get_latest_by_user(
         user_id: int,
@@ -188,18 +221,16 @@ class SubscriptionRepository:
             SELECT *
             FROM subscriptions
             WHERE user_id = ?
+            AND status != ?
             ORDER BY created_at DESC
             LIMIT 1
             """,
-            (user_id,),
+            (
+                user_id,
+                SubscriptionStatus.DELETED,
+            ),
         )
 
-        if row is None:
-            return None
-
-        return SubscriptionRepository._to_entity(
-            row
-        )
 
     @staticmethod
     def get_expired_active(
@@ -237,6 +268,7 @@ class SubscriptionRepository:
             UPDATE subscriptions
             SET
                 protocol=?,
+                server_id=?,
                 inbound_id=?,
                 client_uuid=?,
                 client_email=?,
@@ -248,6 +280,7 @@ class SubscriptionRepository:
             """,
             (
                 subscription.protocol,
+                subscription.server_id,
                 subscription.inbound_id,
                 subscription.client_id,
                 subscription.client_email,
@@ -259,6 +292,7 @@ class SubscriptionRepository:
             ),
         )
 
+
     @staticmethod
     def delete(
         subscription_id: int,
@@ -266,11 +300,16 @@ class SubscriptionRepository:
 
         db.execute(
             """
-            DELETE FROM subscriptions
-            WHERE id=?
+            UPDATE subscriptions
+            SET status = ?
+            WHERE id = ?
             """,
-            (subscription_id,),
+            (
+                SubscriptionStatus.DELETED,
+                subscription_id,
+            ),
         )
+
 
     @staticmethod
     def get_all(
@@ -288,5 +327,74 @@ class SubscriptionRepository:
             for row in rows
         ]
 
+
+    @staticmethod
+    def count() -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM subscriptions
+            """
+        )
+
+        return row["total"]
+
+
+    @staticmethod
+    def count_active() -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM subscriptions
+            WHERE status = ?
+            """,
+            (
+                SubscriptionStatus.ACTIVE,
+            ),
+        )
+
+        return row["total"]
+
+
+    @staticmethod
+    def count_expired() -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM subscriptions
+            WHERE status = ?
+            """,
+            (
+                SubscriptionStatus.EXPIRED,
+            ),
+        )
+
+        return row["total"]
+
+
+
+
+    @staticmethod
+    def count_active_by_server(
+        server_id: int,
+    ) -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM subscriptions
+            WHERE server_id = ?
+            AND status = ?
+            """,
+            (
+                server_id,
+                SubscriptionStatus.ACTIVE,
+            ),
+        )
+
+        return row["total"]
 
 subscription_repo = SubscriptionRepository()

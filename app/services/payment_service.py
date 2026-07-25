@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from loguru import logger
+
 from app.domain.payment import Payment
 from app.domain.enums.payment_status import PaymentStatus
 
@@ -14,10 +16,10 @@ class PaymentService:
 
 
     PRICES = {
-        30: 299,
-        90: 799,
-        180: 1499,
-        365: 2499,
+        30: 150,
+        90: 420,
+        180: 800,
+        365: 1500,
     }
 
 
@@ -26,7 +28,9 @@ class PaymentService:
         days: int,
     ) -> float:
 
-        price = self.PRICES.get(days)
+        price = self.PRICES.get(
+            days
+        )
 
         if price is None:
             raise ValueError(
@@ -36,65 +40,48 @@ class PaymentService:
         return price
 
 
-
     def create_payment(
         self,
         user_id: int,
         protocol: str,
         days: int,
+        subscription_id: int | None = None,
     ) -> Payment:
-
 
         amount = self.calculate_price(
             days
         )
 
-
         payment = yookassa_client.create_payment(
             amount=amount,
-            description=(
-                f"VPN {protocol.upper()} "
-                f"{days} дней"
-            ),
+            description=f"VPN {protocol.upper()} {days} дней",
         )
 
-
         entity = Payment(
-
             id=None,
-
             user_id=user_id,
-
+            subscription_id=subscription_id,
             protocol=protocol,
-
             subscription_days=days,
-
             amount=amount,
-
             currency="RUB",
-
             provider="yookassa",
-
             provider_payment_id=payment.id,
-
             confirmation_url=(
                 payment.confirmation.confirmation_url
                 if payment.confirmation
                 else None
             ),
-
             status=PaymentStatus.PENDING,
-
             created_at=datetime.now(),
-
             paid_at=None,
         )
 
-
-        return payment_repo.create(
+        payment = payment_repo.create(
             entity
         )
 
+        return payment
 
 
     def get_payment(
@@ -128,42 +115,115 @@ class PaymentService:
     ) -> Payment | None:
 
 
-        payment = (
-            self.get_by_provider_id(
-                provider_payment_id
-            )
+        logger.info(
+            f"Processing payment {provider_payment_id}"
+        )
+
+
+        payment = self.get_by_provider_id(
+            provider_payment_id
         )
 
 
         if payment is None:
+
+            logger.warning(
+                f"Payment not found {provider_payment_id}"
+            )
+
             return None
 
 
 
-        if payment.status == PaymentStatus.PAID:
+        if payment.status == PaymentStatus.PAID.value:
+
+            logger.info(
+                f"Payment already processed {payment.id}"
+            )
+
             return payment
 
 
 
-        # отмечаем оплату
-        payment_repo.mark_paid(payment.id)
+        if payment.status in (
+            PaymentStatus.FAILED.value,
+            PaymentStatus.CANCELED.value,
+            PaymentStatus.EXPIRED.value,
+        ):
 
-        # получаем обновлённый объект
-        payment = self.get_payment(payment.id)
+            logger.warning(
+                f"Payment has invalid status: {payment.status}"
+            )
 
-        # создаём VPN
-        subscription = await vpn_service.purchase(
+            return payment
 
-            user_id=payment.user_id,
 
-            protocol=payment.protocol,
 
-            days=payment.subscription_days,
-
+        logger.info(
+            f"Mark payment paid {payment.id}"
         )
+
+
+        payment_repo.mark_paid(
+            payment.id
+        )
+
+
+        payment = self.get_payment(
+            payment.id
+        )
+
+
+
+        if payment.subscription_id is not None:
+
+
+            logger.info(
+                f"Extending subscription {payment.subscription_id}"
+            )
+
+
+            subscription = await vpn_service.extend(
+
+                payment.subscription_id,
+
+                payment.subscription_days,
+
+            )
+
+
+        else:
+
+
+            logger.info(
+                "Creating new VPN subscription..."
+            )
+
+
+            subscription = await vpn_service.purchase(
+
+                user_id=payment.user_id,
+
+                protocol=payment.protocol,
+
+                days=payment.subscription_days,
+
+            )
+
+
+
+        logger.info(
+            f"Subscription ready {subscription.id}"
+        )
+
+
 
         user = users_repo.get_by_id(
             payment.user_id
+        )
+
+        logger.info(
+            "Sending subscription to Telegram..."
         )
 
         await telegram_service.send_subscription(
@@ -171,25 +231,73 @@ class PaymentService:
             subscription,
         )
 
+        logger.success(
+            "Telegram message sent successfully"
+        )
+
         return payment
-    
+
+
+
     async def check_payment(
         self,
         provider_payment_id: str,
     ) -> bool:
 
+
         payment = yookassa_client.get_payment(
             provider_payment_id
         )
 
+
         if payment.status != "succeeded":
+
             return False
 
-        await self.process_successful_payment(
-            provider_payment_id
-        )
 
         return True
 
+
+
+    def expire_pending_payments(
+        self,
+    ):
+
+
+        logger.info(
+            "Expiring old pending payments..."
+        )
+
+
+        payment_repo.expire_old_pending(
+            hours=24
+        )
+
+
+        logger.info(
+            "Pending payments check finished."
+        )
+
+    async def create_payment_by_telegram(
+        self,
+        telegram_id: int,
+        protocol: str,
+        days: int,
+        subscription_id: int | None = None,
+    ):
+
+        user = users_repo.get_by_telegram(
+            telegram_id
+        )
+
+        if user is None:
+            return None
+
+        return self.create_payment(
+            user_id=user.id,
+            protocol=protocol,
+            days=days,
+            subscription_id=subscription_id,
+        )
 
 payment_service = PaymentService()

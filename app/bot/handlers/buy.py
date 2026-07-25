@@ -1,152 +1,134 @@
-import traceback
-
 from aiogram import F, Router
 from aiogram.types import (
     Message,
+    CallbackQuery,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
 )
 
-from app.bot.keyboards.buy_menu import buy_menu
+from app.bot.clients.api_client import api_client
+
+from app.bot.keyboards.tariff_menu import tariff_menu
 from app.bot.keyboards.main_menu import main_menu
-from app.bot.keyboards.protocol_menu import protocol_menu
 
-from app.repositories.user_repository import users_repo
-
-from app.services.qr_service import qr_service
-from app.services.vpn_service import vpn_service
-from app.services.payment_service import payment_service
-
-
+from app.ui.screens_old import (
+    buy_screen,
+    payment_screen,
+)
 
 
 router = Router()
 
 
-BUY_DAYS = {
-    "📅 30 дней": 30,
-    "📅 90 дней": 90,
-    "📅 180 дней": 180,
-    "📅 365 дней": 365,
+TARIFF_NAMES = {
+    30: "⭐ 1 месяц",
+    90: "🔥 3 месяца",
+    180: "💎 6 месяцев",
+    365: "🏆 1 год",
 }
 
 
-selected_protocol: dict[int, str] = {}
-
-
-@router.message(F.text == "🛒 Купить/продлить VPN")
+@router.message(F.text == "🚀 Получить VPN")
 async def buy(message: Message):
 
     await message.answer(
-        "🔌 Выберите протокол:",
-        reply_markup=protocol_menu,
+        buy_screen(),
+        parse_mode="HTML",
+        reply_markup=tariff_menu(),
     )
 
 
-@router.message(F.text.in_(["VLESS", "WireGuard"]))
-async def choose_protocol(message: Message):
+@router.callback_query(F.data.startswith("buy:"))
+async def buy_subscription(
+    callback: CallbackQuery,
+):
 
-    selected_protocol[
-        message.from_user.id
-    ] = (
-        "vless"
-        if message.text == "VLESS"
-        else "wireguard"
-    )
-
-    await message.answer(
-        "📦 Выберите срок:",
-        reply_markup=buy_menu,
-    )
-
-
-@router.message(F.text.in_(BUY_DAYS))
-async def buy_subscription(message: Message):
-
-    protocol = selected_protocol.get(
-        message.from_user.id,
-        "vless",
+    days = int(
+        callback.data.split(":")[1]
     )
 
     await create_subscription(
-        message=message,
-        protocol=protocol,
-        days=BUY_DAYS[message.text],
+        message=callback.message,
+        days=days,
     )
 
+    await callback.answer()
 
-@router.message(F.text == "⬅️ Назад")
-async def back(message: Message):
 
-    await message.answer(
-        "Главное меню",
+@router.callback_query(F.data.startswith("renew_buy:"))
+async def renew_subscription(
+    callback: CallbackQuery,
+):
+
+    _, subscription_id, days = callback.data.split(":")
+
+    await create_subscription(
+        message=callback.message,
+        days=int(days),
+        subscription_id=int(subscription_id),
+    )
+
+    await callback.answer()
+
+
+@router.callback_query(F.data == "main_menu")
+async def back_to_main_callback(
+    callback: CallbackQuery,
+):
+
+    await callback.message.answer(
+        "🏠 Главное меню",
         reply_markup=main_menu,
     )
 
+    await callback.answer()
+
+
+@router.message(F.text == "🏠 Главное меню")
+async def back_to_main(
+    message: Message,
+):
+
+    await message.answer(
+        "🏠 Главное меню",
+        reply_markup=main_menu,
+    )
+
+
 async def create_subscription(
     message: Message,
-    protocol: str,
     days: int,
+    subscription_id: int | None = None,
 ):
 
     try:
 
-        user = users_repo.get_by_telegram(
-            message.from_user.id,
-        )
-
-
-        if user is None:
-
-            await message.answer(
-                "❌ Пользователь не найден.",
-                reply_markup=main_menu,
-            )
-
-            return
-
-
-
-        payment = payment_service.create_payment(
-            user_id=user.id,
-            protocol=protocol,
+        payment = await api_client.create_purchase(
+            telegram_id=message.chat.id,
+            protocol="wireguard",
             days=days,
+            subscription_id=subscription_id,
         )
-
-
-        if payment.confirmation_url is None:
-
-            await message.answer(
-                "❌ Не удалось создать ссылку оплаты.",
-                reply_markup=main_menu,
-            )
-
-            return
-
 
         keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text="💳 Оплатить",
-                            url=payment.confirmation_url,
-                        )
-                    ],
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="💳 Оплатить",
+                        url=payment["confirmation_url"],
+                    )
                 ]
-            )
+            ]
+        )
+
         await message.answer(
-            (
-                "💳 <b>Оплата VPN</b>\n\n"
-                f"🔌 Протокол: <b>{protocol.upper()}</b>\n"
-                f"📅 Срок: <b>{days} дней</b>\n"
-                f"💰 Сумма: <b>{payment.amount} ₽</b>\n\n"
-            "После успешной оплаты VPN будет создан автоматически.\n"
-            "Конфиг придёт в этот чат."
+            payment_screen(
+                tariff=TARIFF_NAMES[days],
+                price=payment["amount"],
             ),
             parse_mode="HTML",
             reply_markup=keyboard,
         )
-
 
     except Exception:
 
@@ -156,8 +138,7 @@ async def create_subscription(
             "Payment creation failed"
         )
 
-
         await message.answer(
-            "❌ Ошибка при создании платежа.",
+            "❌ Ошибка создания платежа.",
             reply_markup=main_menu,
         )

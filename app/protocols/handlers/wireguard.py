@@ -47,6 +47,7 @@ class WireGuardHandler(ProtocolHandler):
     async def create_subscription(
         self,
         xui,
+        server,
         user_id: int,
         days: int,
     ) -> Subscription:
@@ -54,23 +55,29 @@ class WireGuardHandler(ProtocolHandler):
         inbound = await self.get_inbound(xui)
 
         if inbound is None:
-            raise ValueError(
-                "Inbound 'wireguard' не найден"
+            raise RuntimeError(
+                "WireGuard inbound not found."
             )
+        
 
         now = datetime.now()
 
         subscription = Subscription(
             id=None,
             user_id=user_id,
+            server_id=server.id,
             protocol=self.protocol,
             inbound_id=inbound.id,
             client_id=str(uuid4()),
-            client_email=generate_client_email(user_id),
+            client_email=generate_client_email(
+                user_id
+            ),
             config="",
             status=SubscriptionStatus.ACTIVE,
             created_at=now,
-            expires_at=now + timedelta(days=days),
+            expires_at=now + timedelta(
+                days=days
+            ),
         )
 
         await xui.add_client(
@@ -90,9 +97,15 @@ class WireGuardHandler(ProtocolHandler):
                 "Не удалось обновить inbound"
             )
 
-        subscription.config = await xui.get_wireguard_config(
-            updated,
-            subscription.client_email,
+        subscription.config = (
+            await xui.get_wireguard_config(
+                updated,
+                subscription.client_email,
+            )
+        )
+
+        subscription.status = (
+            SubscriptionStatus.ACTIVE
         )
 
         return subscription
@@ -114,14 +127,12 @@ class WireGuardHandler(ProtocolHandler):
             + timedelta(days=days)
         )
 
-        inbound = await self.get_inbound(
-            xui
+        inbound = await self.get_inbound_for_subscription(
+            xui,
+            subscription,
         )
 
-        if inbound is None:
-            raise ValueError(
-                "Inbound 'wireguard' не найден"
-            )
+        
 
         updated = await xui.update_client(
             inbound=inbound,
@@ -141,9 +152,19 @@ class WireGuardHandler(ProtocolHandler):
             )
 
         subscription.expires_at = expires
-        subscription.status = SubscriptionStatus.ACTIVE
+        subscription.status = (
+            SubscriptionStatus.ACTIVE
+        )
+
+        subscription.config = (
+            await xui.get_wireguard_config(
+                inbound,
+                subscription.client_email,
+            )
+        )
 
         return subscription
+
 
     async def disable(
         self,
@@ -151,14 +172,12 @@ class WireGuardHandler(ProtocolHandler):
         subscription: Subscription,
     ) -> Subscription:
 
-        inbound = await self.get_inbound(
-            xui
+        inbound = await self.get_inbound_for_subscription(
+            xui,
+            subscription,
         )
 
-        if inbound is None:
-            raise ValueError(
-                "Inbound 'wireguard' не найден"
-            )
+        
 
         await xui.set_client_enabled(
             inbound=inbound,
@@ -167,7 +186,9 @@ class WireGuardHandler(ProtocolHandler):
             enabled=False,
         )
 
-        subscription.status = SubscriptionStatus.DISABLED
+        subscription.status = (
+            SubscriptionStatus.DISABLED
+        )
 
         return subscription
 
@@ -177,15 +198,56 @@ class WireGuardHandler(ProtocolHandler):
         subscription: Subscription,
     ) -> Subscription:
 
-        inbound = await self.get_inbound(
-            xui
+        inbound = await self.get_inbound_for_subscription(
+            xui,
+            subscription,
         )
 
-        if inbound is None:
-            raise ValueError(
-                "Inbound 'wireguard' не найден"
+        
+
+        existing = await xui.get_wireguard_client(
+            inbound,
+            subscription.client_email,
+        )
+
+        #
+        # Клиент существует → включаем его
+        #
+        if existing:
+
+            await xui.set_client_enabled(
+                inbound=inbound,
+                client_uuid=subscription.client_id,
+                email=subscription.client_email,
+                enabled=True,
             )
 
+            await xui.update_client(
+                inbound=inbound,
+                client_uuid=subscription.client_id,
+                email=subscription.client_email,
+                expiry_time=int(
+                    subscription.expires_at.timestamp() * 1000
+                ),
+                enable=True,
+            )
+
+            subscription.config = (
+                await xui.get_wireguard_config(
+                    inbound,
+                    subscription.client_email,
+                )
+            )
+
+            subscription.status = (
+                SubscriptionStatus.ACTIVE
+            )
+
+            return subscription
+
+        #
+        # Клиента нет → создаём заново
+        #
         await xui.add_client(
             inbound.id,
             self.build_payload(
@@ -203,12 +265,16 @@ class WireGuardHandler(ProtocolHandler):
                 "Не удалось обновить inbound"
             )
 
-        subscription.config = await xui.get_wireguard_config(
-            updated,
-            subscription.client_email,
+        subscription.config = (
+            await xui.get_wireguard_config(
+                updated,
+                subscription.client_email,
+            )
         )
 
-        subscription.status = SubscriptionStatus.ACTIVE
+        subscription.status = (
+            SubscriptionStatus.ACTIVE
+        )
 
         return subscription
 
@@ -218,14 +284,12 @@ class WireGuardHandler(ProtocolHandler):
         subscription: Subscription,
     ) -> Subscription:
 
-        inbound = await self.get_inbound(
-            xui
+        inbound = await self.get_inbound_for_subscription(
+            xui,
+            subscription,
         )
 
-        if inbound is None:
-            raise ValueError(
-                "Inbound 'wireguard' не найден"
-            )
+        
 
         inbound = await xui.refresh_inbound(
             inbound
@@ -233,7 +297,7 @@ class WireGuardHandler(ProtocolHandler):
 
         if inbound is None:
             raise RuntimeError(
-                "Не удалось обновить inbound"
+                "Inbound refresh failed."
             )
 
         client = await xui.get_wireguard_client(
@@ -241,24 +305,41 @@ class WireGuardHandler(ProtocolHandler):
             subscription.client_email,
         )
 
+        #
+        # Клиент отсутствует в панели
+        #
         if client is None:
 
-            return await self.restore_client(
-                xui,
-                subscription,
-            )
+            if (
+                subscription.status
+                == SubscriptionStatus.ACTIVE
+                and subscription.expires_at > datetime.now()
+            ):
+                return await self.restore_client(
+                    xui,
+                    subscription,
+                )
 
+            return subscription
+
+        #
+        # Синхронизация срока действия
+        #
         expiry = client.get(
             "expiryTime",
             0,
         )
 
         if expiry:
-
-            subscription.expires_at = datetime.fromtimestamp(
-                expiry / 1000
+            subscription.expires_at = (
+                datetime.fromtimestamp(
+                    expiry / 1000
+                )
             )
 
+        #
+        # Синхронизация статуса
+        #
         subscription.status = (
             SubscriptionStatus.ACTIVE
             if client.get(
@@ -268,22 +349,41 @@ class WireGuardHandler(ProtocolHandler):
             else SubscriptionStatus.DISABLED
         )
 
-        subscription.config = await xui.get_wireguard_config(
-            inbound,
-            subscription.client_email,
+        subscription.config = (
+            await xui.get_wireguard_config(
+                inbound,
+                subscription.client_email,
+            )
         )
+
+        #
+        # Если клиент отключён,
+        # но подписка ещё действительна —
+        # автоматически включаем.
+        #
+        if (
+            subscription.status
+            == SubscriptionStatus.DISABLED
+            and subscription.expires_at > datetime.now()
+        ):
+            return await self.restore_client(
+                xui,
+                subscription,
+            )
 
         return subscription
 
     async def delete(
         self,
-        xui,
         subscription: Subscription,
+        xui,
     ) -> None:
 
-        await xui.delete_client(
-            subscription.client_id
+        await self.disable(
+            xui=xui,
+            subscription=subscription,
         )
+
 
     async def get_file(
         self,
@@ -291,14 +391,12 @@ class WireGuardHandler(ProtocolHandler):
         subscription: Subscription,
     ) -> tuple[str, bytes]:
 
-        inbound = await self.get_inbound(
-            xui
+        inbound = await self.get_inbound_for_subscription(
+            xui,
+            subscription,
         )
 
-        if inbound is None:
-            raise ValueError(
-                "Inbound 'wireguard' не найден"
-            )
+        
 
         config = await xui.get_wireguard_config(
             inbound,
@@ -309,3 +407,33 @@ class WireGuardHandler(ProtocolHandler):
             f"{subscription.client_email}.conf",
             config.encode("utf-8"),
         )
+
+
+    async def restore(
+        self,
+        xui,
+        subscription: Subscription,
+    ) -> Subscription:
+
+        return await self.restore_client(
+            xui=xui,
+            subscription=subscription,
+        )
+
+
+    async def get_inbound_for_subscription(
+        self,
+        xui,
+        subscription: Subscription,
+    ) -> Inbound:
+
+        inbound = await xui.get_inbound_by_id(
+            subscription.inbound_id
+        )
+
+        if inbound is None:
+            raise RuntimeError(
+                f"Inbound {subscription.inbound_id} not found."
+            )
+
+        return inbound

@@ -1,12 +1,32 @@
 from loguru import logger
 
 from app.domain.subscription import Subscription
+from app.domain.legacy_enums import SubscriptionStatus
 from app.protocols.handlers.base import ProtocolHandler
 from app.repositories.subscription_repository import subscription_repo
 from app.services.xui_client import XUIClient
+from app.services.server_service import server_service
 
 class VPNService:
 
+
+    @staticmethod
+    def _get_server(
+        subscription: Subscription,
+    ):
+
+        server = server_service.get_by_id(
+            subscription.server_id
+        )
+
+        if server is None:
+            raise RuntimeError(
+                f"Server {subscription.server_id} not found."
+            )
+
+        return server
+
+   
 
     async def create(
         self,
@@ -15,35 +35,37 @@ class VPNService:
         days: int = 30,
     ) -> Subscription:
 
-        async with XUIClient() as xui:
+        server = server_service.get_best_server()
 
-            handler = ProtocolHandler.create(
-                protocol
-            )
+        handler = ProtocolHandler.create(
+            protocol
+        )
+
+        async with XUIClient(server) as xui:
 
             subscription = await handler.create_subscription(
                 xui=xui,
                 user_id=user_id,
+                server=server,
                 days=days,
             )
 
+        subscription.server_id = server.id
 
-            created = subscription_repo.create(
-                subscription
-            )
+        created = subscription_repo.create(
+            subscription
+        )
 
+        logger.info(
+            "VPN created user={} subscription={} server={}",
+            user_id,
+            created.id,
+            server.id,
+        )
 
-            logger.info(
-                "VPN created user={} subscription={}",
-                user_id,
-                created.id,
-            )
+        return created
 
-
-            return created
-
-
-
+   
     async def purchase(
         self,
         user_id: int,
@@ -76,7 +98,7 @@ class VPNService:
         )
 
 
-
+    
     async def renew(
         self,
         subscription_id: int,
@@ -97,12 +119,15 @@ class VPNService:
             )
 
 
+        server = self._get_server(
+            subscription
+        )
+
         handler = ProtocolHandler.create(
             subscription.protocol
         )
 
-
-        async with XUIClient() as xui:
+        async with XUIClient(server) as xui:
 
             renewed = await handler.renew(
                 xui=xui,
@@ -138,12 +163,46 @@ class VPNService:
         )
 
 
-
     async def disable(
         self,
-        subscription_id: int,
+        subscription: Subscription,
     ) -> Subscription:
 
+        server = self._get_server(
+            subscription
+        )
+
+        handler = ProtocolHandler.create(
+            subscription.protocol
+        )
+
+        async with XUIClient(server) as xui:
+
+      
+
+            disabled = await handler.disable(
+                xui=xui,
+                subscription=subscription,
+            )
+
+        subscription_repo.update(
+            disabled
+        )
+
+        logger.warning(
+            "Subscription {} disabled",
+            disabled.id,
+        )
+
+        return disabled
+
+
+
+
+    async def delete(
+        self,
+        subscription_id: int,
+    ) -> Subscription | None:
 
         subscription = (
             subscription_repo.get_by_id(
@@ -153,17 +212,18 @@ class VPNService:
 
 
         if subscription is None:
-            raise ValueError(
-                "Подписка не найдена"
-            )
+            return None
 
+
+        server = self._get_server(
+            subscription
+        )
 
         handler = ProtocolHandler.create(
             subscription.protocol
         )
 
-
-        async with XUIClient() as xui:
+        async with XUIClient(server) as xui:
 
             disabled = await handler.disable(
                 xui=xui,
@@ -186,79 +246,7 @@ class VPNService:
 
 
 
-    async def delete(
-        self,
-        subscription_id: int,
-    ) -> None:
 
-
-        subscription = (
-            subscription_repo.get_by_id(
-                subscription_id
-            )
-        )
-
-
-        if subscription is None:
-            return
-
-
-        handler = ProtocolHandler.create(
-            subscription.protocol
-        )
-
-
-        async with XUIClient() as xui:
-
-            await handler.delete(
-                xui=xui,
-                subscription=subscription,
-            )
-
-
-        subscription_repo.delete(
-            subscription.id
-        )
-
-
-        logger.info(
-            "Subscription {} deleted",
-            subscription.id,
-        )
-
-
-
-    async def restore_client(
-        self,
-        subscription: Subscription,
-    ) -> Subscription:
-
-
-        handler = ProtocolHandler.create(
-            subscription.protocol
-        )
-
-
-        async with XUIClient() as xui:
-
-            restored = await handler.restore_client(
-                xui=xui,
-                subscription=subscription,
-            )
-
-
-        subscription_repo.update(
-            restored
-        )
-
-
-        logger.warning(
-            "Client {} restored",
-            restored.client_id,
-        )
-
-
-        return restored
 
 
 
@@ -286,11 +274,15 @@ class VPNService:
         subscription: Subscription,
     ) -> tuple[str, bytes]:
 
+        server = self._get_server(
+            subscription
+        )
+
         handler = ProtocolHandler.create(
             subscription.protocol
         )
 
-        async with XUIClient() as xui:
+        async with XUIClient(server) as xui:
 
             return await handler.get_file(
                 xui,
@@ -326,12 +318,15 @@ class VPNService:
             return None
 
 
+        server = self._get_server(
+            subscription
+        )
+
         handler = ProtocolHandler.create(
             subscription.protocol
         )
 
-
-        async with XUIClient() as xui:
+        async with XUIClient(server) as xui:
 
             synced = await handler.sync(
                 xui=xui,
@@ -354,12 +349,15 @@ class VPNService:
     ) -> Subscription:
 
 
+        server = self._get_server(
+            subscription
+        )
+
         handler = ProtocolHandler.create(
             subscription.protocol
         )
 
-
-        async with XUIClient() as xui:
+        async with XUIClient(server) as xui:
 
             synced = await handler.sync(
                 xui=xui,
@@ -374,6 +372,45 @@ class VPNService:
 
         return synced
 
+
+    async def restore_client(
+        self,
+        subscription: Subscription,
+    ) -> Subscription:
+
+        if (
+            subscription.status
+            == SubscriptionStatus.EXPIRED
+        ):
+            raise ValueError(
+                "Подписка истекла"
+            )
+
+        server = self._get_server(
+            subscription
+        )
+
+        handler = ProtocolHandler.create(
+            subscription.protocol
+        )
+
+        async with XUIClient(server) as xui:
+
+            restored = await handler.restore(
+                xui=xui,
+                subscription=subscription,
+            )
+
+        subscription_repo.update(
+            restored
+        )
+
+        logger.info(
+            "Subscription {} restored",
+            restored.id,
+        )
+
+        return restored
 
 
 vpn_service = VPNService()

@@ -165,8 +165,11 @@ class ProtocolHandler(ABC):
         """
         raise NotImplementedError
 
+    async def restore(
+        self,
+    subscription,
+    ):
+      raise NotImplementedError
 
 # Автоматически загружаем все протоколы
 from app.protocols.loader import load_protocol_handlers
-
-load_protocol_handlers()

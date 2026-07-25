@@ -10,3 +10,5 @@ class PaymentStatus(StrEnum):
     FAILED = "failed"
 
     CANCELED = "canceled"
+
+    EXPIRED = "expired"

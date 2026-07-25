@@ -1,9 +1,12 @@
+import truststore
 import ssl
 
-try:
-    import truststore
 
-    truststore.inject_into_ssl()
-    print("Windows Trust Store enabled")
-except Exception:
-    print("Default SSL certificates")
+def init_ssl():
+    ctx = truststore.SSLContext(
+        ssl.PROTOCOL_TLS_CLIENT
+    )
+
+    ssl._create_default_https_context = (
+        lambda: ctx
+    )

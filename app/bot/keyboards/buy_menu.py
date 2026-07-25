@@ -1,17 +1,32 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
+
 buy_menu = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="📅 30 дней"),
-            KeyboardButton(text="📅 90 дней"),
+            KeyboardButton(
+                text="⭐ 1 месяц — 150 ₽"
+            ),
         ],
         [
-            KeyboardButton(text="📅 180 дней"),
-            KeyboardButton(text="📅 365 дней"),
+            KeyboardButton(
+                text="🔥 3 месяца — 420 ₽ (-7%)"
+            ),
         ],
         [
-            KeyboardButton(text="⬅️ Назад"),
+            KeyboardButton(
+                text="💎 6 месяцев — 800 ₽ (-11%)"
+            ),
+        ],
+        [
+            KeyboardButton(
+                text="🏆 1 год — 1500 ₽ (-17%)"
+            ),
+        ],
+        [
+            KeyboardButton(
+                text="🏠 Главное меню"
+            ),
         ],
     ],
     resize_keyboard=True,
