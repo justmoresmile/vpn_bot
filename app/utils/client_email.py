@@ -1,6 +1,9 @@
+from uuid import uuid4
+
+
 def generate_client_email(user_id: int) -> str:
     """
-    Генерирует идентификатор клиента для 3x-ui.
+    Генерирует уникальный email клиента для 3x-ui.
     """
 
-    return str(user_id)
+    return f"user{user_id}-{uuid4().hex[:8]}"
