@@ -52,11 +52,13 @@ class TelegramService:
             )
 
 
-            filename = (
-                f"JustVPN_"
-                f"{safe_filename(subscription.client_email)}"
-                f".conf"
+            client_email = (
+                subscription["client_email"]
+                if isinstance(subscription, dict)
+                else subscription.client_email
             )
+
+            filename = f"{safe_filename(client_email)}.conf"
 
 
             file = BufferedInputFile(
