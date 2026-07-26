@@ -131,6 +131,8 @@ async def qr(
 
         await callback.answer()
 
+
+    
 @router.callback_query(
     F.data.startswith("subscription_config:")
 )
@@ -171,6 +173,10 @@ async def config(
 
 
     await callback.answer()
+
+
+
+
 
 @router.callback_query(
     F.data.startswith("subscription_renew:")
