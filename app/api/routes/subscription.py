@@ -91,6 +91,8 @@ async def get_subscription(
 
         config=subscription.config,
 
+        client_email=subscription.client_email,
+
     )
 
 

@@ -15,6 +15,8 @@ class SubscriptionResponse(BaseModel):
 
     expires_at: datetime
 
+    client_email: str
+
 
 
 class SubscriptionShortResponse(BaseModel):
