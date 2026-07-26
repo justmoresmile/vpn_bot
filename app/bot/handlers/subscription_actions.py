@@ -142,21 +142,35 @@ async def config(
         callback
     )
 
+
+    subscription = await api_client.get_subscription(
+        telegram_id=callback.from_user.id,
+        subscription_id=subscription_id,
+    )
+
+
     content = await api_client.download_file(
         telegram_id=callback.from_user.id,
         subscription_id=subscription_id,
     )
 
+
+    client_email = subscription.get(
+        "client_email",
+        str(callback.from_user.id),
+    )
+
+
     await callback.message.answer_document(
         BufferedInputFile(
             content,
-            filename=f"wireguard-{subscription_id}.conf",
+            filename=f"{client_email}.conf",
         ),
         caption="📥 Конфигурационный файл",
     )
 
-    await callback.answer()
 
+    await callback.answer()
 
 @router.callback_query(
     F.data.startswith("subscription_renew:")
