@@ -7,10 +7,14 @@ from aiogram.types import (
 )
 
 from app.bot.clients.api_client import api_client
+
 from app.bot.keyboards.subscription_menu import (
     subscription_actions_menu,
 )
-from app.bot.keyboards.tariff_menu import tariff_menu
+
+from app.bot.keyboards.tariff_menu import (
+    tariff_menu,
+)
 
 from app.ui.screens_old import my_vpn_screen
 
@@ -25,6 +29,7 @@ def get_subscription_id(
     return int(
         callback.data.split(":")[1]
     )
+
 
 
 @router.callback_query(
@@ -43,6 +48,7 @@ async def select_subscription(
         subscription_id=subscription_id,
     )
 
+
     expires = datetime.fromisoformat(
         subscription["expires_at"]
     )
@@ -51,6 +57,7 @@ async def select_subscription(
         subscription["created_at"]
     )
 
+
     days_left = max(
         0,
         (
@@ -58,15 +65,18 @@ async def select_subscription(
         ).days,
     )
 
+
     total_days = (
         expires - created
     ).days
+
 
     status = (
         "🟢 Активен"
         if days_left > 0
         else "🔴 Истёк"
     )
+
 
     await callback.message.answer(
         my_vpn_screen(
@@ -85,7 +95,11 @@ async def select_subscription(
         ),
     )
 
+
     await callback.answer()
+
+
+
 
 
 @router.callback_query(
@@ -101,10 +115,12 @@ async def qr(
             callback
         )
 
+
         image = await api_client.get_qr(
             telegram_id=callback.from_user.id,
             subscription_id=subscription_id,
         )
+
 
         await callback.message.answer_photo(
             BufferedInputFile(
@@ -114,6 +130,7 @@ async def qr(
             caption="📷 QR-код WireGuard",
         )
 
+
     except Exception:
 
         from app.logger import logger
@@ -122,17 +139,21 @@ async def qr(
             "QR download failed"
         )
 
+
         await callback.answer(
             "Не удалось получить QR",
             show_alert=True,
         )
+
 
     else:
 
         await callback.answer()
 
 
-    
+
+
+
 @router.callback_query(
     F.data.startswith("subscription_config:")
 )
@@ -157,10 +178,7 @@ async def config(
     )
 
 
-    client_email = subscription.get(
-        "client_email",
-        str(callback.from_user.id),
-    )
+    client_email = subscription["client_email"]
 
 
     await callback.message.answer_document(
@@ -189,6 +207,7 @@ async def renew(
         callback
     )
 
+
     await callback.message.answer(
         "Выберите срок продления:",
         reply_markup=tariff_menu(
@@ -196,28 +215,6 @@ async def renew(
             subscription_id=subscription_id,
         ),
     )
-
-    async def get_qr(
-        self,
-        telegram_id: int,
-        subscription_id: int,
-    ):
-
-        async with httpx.AsyncClient(
-            timeout=10
-        ) as client:
-
-            response = await client.get(
-                f"{self.base_url}/api/v1/subscription/{subscription_id}/qr",
-                headers=await self._headers(
-                    telegram_id
-                ),
-            )
-
-            response.raise_for_status()
-
-            return response.content
-
 
 
     await callback.answer()
