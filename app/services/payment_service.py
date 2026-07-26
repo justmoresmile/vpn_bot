@@ -175,8 +175,10 @@ class PaymentService:
 
 
 
-        if payment.subscription_id is not None:
+        
 
+
+        if payment.subscription_id is not None:
 
             logger.info(
                 f"Extending subscription {payment.subscription_id}"
@@ -184,22 +186,25 @@ class PaymentService:
 
 
             old_subscription = (
-                subscription_service.get_by_id(
+                subscription_service
+                .get_by_id(
                     payment.subscription_id
                 )
             )
 
 
-            old_date = old_subscription.expires_at
+            old_expires_at = (
+                old_subscription.expires_at
+            )
 
 
             subscription = await vpn_service.extend(
-
                 payment.subscription_id,
-
                 payment.subscription_days,
-
             )
+
+
+            subscription.old_expires_at = old_expires_at
 
 
         else:
