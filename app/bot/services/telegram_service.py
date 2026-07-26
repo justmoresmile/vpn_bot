@@ -12,8 +12,9 @@ from app.bot.clients.api_client import api_client
 
 from app.logger import logger
 
-from app.ui.screens_old import (
+from app.ui.screens.payment import (
     payment_success_screen,
+    payment_renew_success_screen,
 )
 import re
 def safe_filename(value: str) -> str:
@@ -96,6 +97,23 @@ class TelegramService:
             )
 
             raise
+
+
+    async def send_renew_notification(
+        self,
+        user_id: int,
+        old_date: str,
+        new_date: str,
+    ) -> None:
+
+        await bot.send_message(
+            chat_id=user_id,
+            text=payment_renew_success_screen(
+                old_date=old_date,
+                new_date=new_date,
+            ),
+            parse_mode=ParseMode.HTML,
+        )
 
 
 

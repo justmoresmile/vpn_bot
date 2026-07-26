@@ -2,8 +2,24 @@ def payment_success_screen() -> str:
 
     return (
         "<b>✅ Оплата успешно прошла!</b>\n\n"
-        "Ваш VPN доступен.\n"
-        "Конфигурация отправлена ниже."
+        "Ваш VPN создан.\n\n"
+        "📥 Конфигурация отправлена ниже."
+    )
+
+
+def payment_renew_success_screen(
+    old_date: str,
+    new_date: str,
+) -> str:
+
+    return (
+        "<b>✅ Оплата успешно прошла!</b>\n\n"
+        "🔄 Ваш VPN продлён.\n\n"
+        f"📅 Было до:\n"
+        f"{old_date}\n\n"
+        f"📅 Теперь действует до:\n"
+        f"{new_date}\n\n"
+        "Спасибо за использование JustVPN ❤️"
     )
 
 

@@ -10,7 +10,7 @@ from app.payments.yookassa_client import yookassa_client
 from app.services.vpn_service import vpn_service
 from app.bot.services import telegram_service
 from app.repositories.user_repository import users_repo
-
+from app.services.subscription_service import subscription_service
 
 class PaymentService:
 
@@ -183,6 +183,16 @@ class PaymentService:
             )
 
 
+            old_subscription = (
+                subscription_service.get_by_id(
+                    payment.subscription_id
+                )
+            )
+
+
+            old_date = old_subscription.expires_at
+
+
             subscription = await vpn_service.extend(
 
                 payment.subscription_id,
@@ -223,13 +233,33 @@ class PaymentService:
         )
 
         logger.info(
-            "Sending subscription to Telegram..."
-        )
+    "Sending Telegram notification..."
+)
 
-        await telegram_service.send_subscription(
-            user.telegram_id,
-            subscription,
-        )
+
+        if payment.subscription_id is not None:
+
+            await telegram_service.send_renew_notification(
+                user.telegram_id,
+                old_date=(
+                    subscription.old_expires_at.strftime(
+                        "%d.%m.%Y %H:%M"
+                    )
+                ),
+                new_date=(
+                    subscription.expires_at.strftime(
+                        "%d.%m.%Y %H:%M"
+                    )
+                ),
+            )
+
+
+        else:
+
+            await telegram_service.send_subscription(
+                user.telegram_id,
+                subscription,
+            )
 
         logger.success(
             "Telegram message sent successfully"
