@@ -96,7 +96,7 @@ class TelegramService:
                 inline_keyboard=[
                     [
                         InlineKeyboardButton(
-                            text="📖 Как подключить VPN",
+                            text="📖 Инструкция по подключению",
                             callback_data="vpn_instruction",
                         )
                     ]
