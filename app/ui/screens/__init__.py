@@ -28,12 +28,7 @@ from .common import (
     support_screen,
 )
 
-from .instruction import vpn_instruction_screen
-
 from .instruction import (
     instruction_screen,
 )
 
-from .common import (
-    support_screen,
-)

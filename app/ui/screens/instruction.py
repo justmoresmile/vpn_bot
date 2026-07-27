@@ -1,4 +1,4 @@
-def vpn_instruction_screen() -> str:
+def instruction_screen() -> str:
 
     return """
 📖 <b>Инструкция по подключению JustVPN</b>

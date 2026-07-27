@@ -5,7 +5,7 @@ from aiogram.types import (
 )
 
 from app.bot.keyboards.main_menu import main_menu
-from app.ui.screens.instruction import vpn_instruction_screen
+from app.ui.screens.instruction import instruction_screen
 from app.ui.screens.common import support_screen
 
 router = Router()
@@ -19,7 +19,7 @@ async def vpn_instruction(
 ):
 
     await callback.message.answer(
-        vpn_instruction_screen(),
+        instruction_screen(),
         parse_mode="HTML",
         reply_markup=main_menu,
     )
@@ -35,7 +35,7 @@ async def instruction_menu_handler(
 ):
 
     await message.answer(
-        vpn_instruction_screen(),
+        instruction_screen(),
         parse_mode="HTML",
         reply_markup=main_menu,
     )
