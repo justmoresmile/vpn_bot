@@ -245,33 +245,18 @@ class PaymentService:
 )
 
 
-        if payment.subscription_id is not None:
-
-            await telegram_service.send_renew_notification(
-                user.telegram_id,
-                old_date=(
-                    subscription.old_expires_at.strftime(
-                        "%d.%m.%Y %H:%M"
-                    )
-                ),
-                new_date=(
-                    subscription.expires_at.strftime(
-                        "%d.%m.%Y %H:%M"
-                    )
-                ),
-            )
-
-
-        else:
+        if payment.subscription_id is None:
 
             await telegram_service.send_subscription(
                 user.telegram_id,
                 subscription,
             )
 
+
         logger.success(
             "Telegram message sent successfully"
         )
+
 
         return payment
 

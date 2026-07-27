@@ -9,6 +9,9 @@ from app.services.server_service import server_service
 from app.repositories.subscription_notification_repository import (
     subscription_notification_repo,
 )
+from app.repositories.user_repository import users_repo
+
+from app.bot.services.telegram_service import telegram_service
 
 class VPNService:
 
@@ -122,6 +125,7 @@ class VPNService:
             )
 
 
+        old_expires_at = subscription.expires_at
         server = self._get_server(
             subscription
         )
@@ -142,6 +146,28 @@ class VPNService:
         subscription_repo.update(
             renewed
         )
+
+
+        user = users_repo.get_by_id(
+            renewed.user_id
+        )
+
+
+        if user and old_expires_at:
+
+            await telegram_service.send_renew_notification(
+                user.telegram_id,
+                old_date=(
+                    old_expires_at.strftime(
+                        "%d.%m.%Y %H:%M"
+                    )
+                ),
+                new_date=(
+                    renewed.expires_at.strftime(
+                        "%d.%m.%Y %H:%M"
+                    )
+                ),
+            )
 
 
         logger.info(
