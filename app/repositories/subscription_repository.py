@@ -358,14 +358,35 @@ class SubscriptionRepository:
 
     @staticmethod
     def get_all(
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Subscription]:
 
-        rows = db.fetchall(
-            """
-            SELECT *
-            FROM subscriptions
-            """
-        )
+        if limit is None:
+
+            rows = db.fetchall(
+                """
+                SELECT *
+                FROM subscriptions
+                ORDER BY id DESC
+                """
+            )
+
+        else:
+
+            rows = db.fetchall(
+                """
+                SELECT *
+                FROM subscriptions
+                ORDER BY id DESC
+                LIMIT ?
+                OFFSET ?
+                """,
+                (
+                    limit,
+                    offset,
+                ),
+            )
 
         return [
             SubscriptionRepository._to_entity(row)
