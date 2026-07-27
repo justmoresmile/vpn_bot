@@ -11,9 +11,8 @@ from app.bot.keyboards.subscription_menu import (
     subscription_actions_menu,
 )
 
-from app.ui.screens_old import (
-    subscription_screen,
-    no_subscription_screen,
+from app.ui.screens.subscription import (
+    my_vpn_screen,
 )
 
 

@@ -16,7 +16,7 @@ from app.bot.keyboards.tariff_menu import (
     tariff_menu,
 )
 
-from app.ui.screens_old import my_vpn_screen
+from app.ui.screens.subscription import my_vpn_screen
 
 
 router = Router()

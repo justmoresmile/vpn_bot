@@ -10,10 +10,8 @@ from app.bot.clients.api_client import api_client
 
 from app.bot.keyboards.tariff_menu import tariff_menu
 from app.bot.keyboards.main_menu import main_menu
-
-from app.ui.screens_old import (
-    buy_screen,
-    payment_screen,
+from app.ui.screens.payment import (
+    payment_success_screen,
 )
 
 
