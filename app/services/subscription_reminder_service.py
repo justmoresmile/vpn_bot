@@ -117,7 +117,8 @@ class SubscriptionReminderService:
 
 
                 logger.info(
-                    "Subscription reminder sent subscription={} days={}",
+                    "Subscription reminder sent "
+                    "subscription={} days={}",
                     subscription.id,
                     days_left,
                 )
