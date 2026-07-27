@@ -4,7 +4,7 @@ from aiogram.types import (
     CallbackQuery,
 )
 
-from app.ui.screens.common import support_screen
+from app.ui.screens.support import support_screen
 from app.bot.keyboards.support_menu import support_menu
 
 router = Router()
