@@ -6,7 +6,7 @@ from app.repositories.subscription_repository import (
     subscription_repo,
 )
 
-from app.repositories.users_repository import (
+from app.repositories.user_repository import (
     users_repo,
 )
 
@@ -34,8 +34,10 @@ class SubscriptionReminderService:
 
         for subscription in subscriptions:
 
+
             if not subscription.expires_at:
                 continue
+
 
 
             days_left = (
@@ -45,13 +47,16 @@ class SubscriptionReminderService:
             ).days
 
 
+
             if days_left not in [7, 3, 1]:
                 continue
+
 
 
             notification_type = (
                 f"expires_{days_left}_days"
             )
+
 
 
             exists = db.fetchone(
@@ -68,6 +73,7 @@ class SubscriptionReminderService:
             )
 
 
+
             if exists:
                 continue
 
@@ -78,44 +84,24 @@ class SubscriptionReminderService:
             )
 
 
-            if not user:
+
+            if user is None:
+                logger.warning(
+                    "User not found subscription={}",
+                    subscription.id,
+                )
+
                 continue
 
 
 
             try:
 
-                if days_left == 7:
 
-                    text = (
-                        "⚠️ Напоминание JustVPN\n\n"
-                        "Ваша подписка закончится через 7 дней.\n\n"
-                        f"📅 Дата окончания: "
-                        f"{subscription.expires_at:%d.%m.%Y}\n\n"
-                        "Продлите подписку заранее ❤️"
-                    )
-
-
-                elif days_left == 3:
-
-                    text = (
-                        "⚠️ Ваша подписка JustVPN\n\n"
-                        "Осталось 3 дня до окончания."
-                    )
-
-
-                else:
-
-                    text = (
-                        "🚨 Последний день JustVPN\n\n"
-                        "Завтра подписка будет отключена."
-                    )
-
-
-
-                await telegram_service.send_message(
-                    user.telegram_id,
-                    text,
+                await telegram_service.send_expire_warning(
+                    user_id=user.telegram_id,
+                    days=days_left,
+                    expires_at=subscription.expires_at,
                 )
 
 
@@ -140,8 +126,10 @@ class SubscriptionReminderService:
                 )
 
 
+
                 logger.info(
-                    "Reminder sent subscription={} days={}",
+                    "Subscription reminder sent "
+                    "subscription={} days={}",
                     subscription.id,
                     days_left,
                 )
@@ -150,8 +138,9 @@ class SubscriptionReminderService:
 
             except Exception:
 
+
                 logger.exception(
-                    "Reminder failed {}",
+                    "Reminder failed subscription={}",
                     subscription.id,
                 )
 

@@ -68,3 +68,25 @@ def subscription_actions_menu(subscription):
 
         ]
     )
+
+
+def subscription_expire_menu(subscription):
+
+    subscription_id = _subscription_id(
+        subscription
+    )
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+
+            [
+                InlineKeyboardButton(
+                    text="🔄 Продлить подписку",
+                    callback_data=(
+                        f"subscription_renew:{subscription_id}"
+                    ),
+                )
+            ],
+
+        ]
+    )
