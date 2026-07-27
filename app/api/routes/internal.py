@@ -38,17 +38,19 @@ async def create_purchase(
 ):
 
     logger.info(
-        "Internal purchase request: telegram_id=%s protocol=%s days=%s",
-        request.telegram_id,
-        request.protocol,
-        request.days,
+    "Internal purchase request: telegram_id=%s protocol=%s days=%s subscription_id=%s",
+    request.telegram_id,
+    request.protocol,
+    request.days,
+    request.subscription_id,
     )
 
 
     payment = await payment_service.create_payment_by_telegram(
-        telegram_id=request.telegram_id,
-        protocol=request.protocol,
-        days=request.days,
+    telegram_id=request.telegram_id,
+    protocol=request.protocol,
+    days=request.days,
+    subscription_id=request.subscription_id,
     )
 
 
