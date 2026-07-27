@@ -258,6 +258,51 @@ class SubscriptionRepository:
             for row in rows
         ]
 
+
+
+
+    @staticmethod
+    def get_expiring(
+        days: int,
+    ) -> list[Subscription]:
+
+        now = int(
+            datetime.now().timestamp()
+        )
+
+        future = int(
+            (
+                datetime.now()
+                .timestamp()
+                +
+                days * 86400
+            )
+        )
+
+
+        rows = db.fetchall(
+            """
+            SELECT *
+            FROM subscriptions
+            WHERE status = ?
+              AND expires_at > ?
+              AND expires_at <= ?
+            """,
+            (
+                SubscriptionStatus.ACTIVE,
+                now,
+                future,
+            ),
+        )
+
+
+        return [
+            SubscriptionRepository._to_entity(row)
+            for row in rows
+        ]
+
+
+
     @staticmethod
     def update(
         subscription: Subscription,

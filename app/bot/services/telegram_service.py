@@ -116,6 +116,29 @@ class TelegramService:
         )
 
 
+        async def send_expire_warning(
+            self,
+            user_id: int,
+            days: int,
+            expires_at: str,
+        ) -> None:
+
+
+            await bot.send_message(
+                chat_id=user_id,
+                text=(
+                    "⚠️ <b>JustVPN</b>\n\n"
+                    f"Ваша подписка заканчивается "
+                    f"через <b>{days} дней</b>\n\n"
+                    f"📅 Дата окончания:\n"
+                    f"{expires_at}\n\n"
+                    "Продлите подписку заранее ❤️"
+                ),
+                parse_mode=ParseMode.HTML,
+            )
+
+
+
     async def send_message(
         self,
         user_id: int,

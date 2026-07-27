@@ -108,3 +108,22 @@ def create_tables():
             REFERENCES subscriptions(id)
     )
     """)
+
+    db.execute("""
+    CREATE TABLE IF NOT EXISTS subscription_notifications
+    (
+
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        subscription_id INTEGER NOT NULL,
+
+        notification_type TEXT NOT NULL,
+
+        created_at INTEGER NOT NULL,
+
+        UNIQUE(
+            subscription_id,
+            notification_type
+        )
+    )
+    """)
