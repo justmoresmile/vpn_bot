@@ -16,6 +16,7 @@ from app.services.subscription_reminder_service import (
 )
 
 
+
 async def subscription_task():
 
     logger.info(
@@ -60,6 +61,12 @@ async def subscription_task():
             logger.exception(
                 "Subscription checker failed."
             )
+
+     
+
+           
+
+       
 
         try:
 
