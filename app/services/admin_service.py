@@ -476,9 +476,15 @@ class AdminService:
             "subscriptions": [
                 {
                     "id": sub.id,
+
                     "user_id": sub.user_id,
+
+                    "client_email": sub.client_email,
+
                     "protocol": sub.protocol,
+
                     "status": sub.status.value,
+
                     "expires_at": sub.expires_at.strftime(
                         "%d.%m.%Y %H:%M"
                     ),
