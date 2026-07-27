@@ -186,17 +186,7 @@ class PaymentService:
             )
 
 
-            old_subscription = (
-                subscription_service
-                .get_by_id(
-                    payment.subscription_id
-                )
-            )
-
-
-            old_expires_at = (
-                old_subscription.expires_at
-            )
+            
 
 
             subscription = await vpn_service.extend(
@@ -205,7 +195,7 @@ class PaymentService:
             )
 
 
-            subscription.old_expires_at = old_expires_at
+            
 
 
             
@@ -240,17 +230,39 @@ class PaymentService:
             payment.user_id
         )
 
+
         logger.info(
-    "Sending Telegram notification..."
-)
+            "Sending Telegram notification..."
+        )
 
 
-        if payment.subscription_id is None:
+        if user:
 
-            await telegram_service.send_subscription(
-                user.telegram_id,
-                subscription,
-            )
+            if payment.subscription_id is not None:
+
+
+                await telegram_service.send_renew_notification(
+                    user.telegram_id,
+                    old_date=(
+                        subscription.old_expires_at.strftime(
+                            "%d.%m.%Y %H:%M"
+                        )
+                    ),
+                    new_date=(
+                        subscription.expires_at.strftime(
+                            "%d.%m.%Y %H:%M"
+                        )
+                    ),
+                )
+
+
+            else:
+
+
+                await telegram_service.send_subscription(
+                    user.telegram_id,
+                    subscription,
+                )
 
 
         logger.success(

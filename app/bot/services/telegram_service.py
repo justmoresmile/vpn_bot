@@ -20,6 +20,9 @@ from app.ui.screens.payment import (
 from app.bot.keyboards.subscription_menu import (
     subscription_expire_menu,
 )
+from app.ui.screens.subscription import (
+    subscription_renew_success_screen,
+)
 
 import re
 
@@ -145,7 +148,21 @@ class TelegramService:
 
 
 
+    async def send_admin_renew_notification(
+        self,
+        user_id: int,
+        old_date: str,
+        new_date: str,
+    ):
 
+        await bot.send_message(
+            chat_id=user_id,
+            text=subscription_renew_success_screen(
+                old_date=old_date,
+                new_date=new_date,
+            ),
+            parse_mode=ParseMode.HTML,
+        )
 
     async def send_expire_warning(
         self,

@@ -30,3 +30,23 @@ def my_vpn_screen(
         f"📌 Статус: {subscription.status.value}\n"
         f"📅 До: {subscription.expires_at}\n"
     )
+
+
+def subscription_renew_success_screen(
+    old_date: str,
+    new_date: str,
+) -> str:
+
+    return (
+        "✅ <b>Подписка продлена</b>\n\n"
+
+        "🔄 Ваш VPN продлён.\n\n"
+
+        f"📅 Было до:\n"
+        f"<b>{old_date}</b>\n\n"
+
+        f"📅 Теперь действует до:\n"
+        f"<b>{new_date}</b>\n\n"
+
+        "Спасибо за использование JustVPN ❤️"
+    )
