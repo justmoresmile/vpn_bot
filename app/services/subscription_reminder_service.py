@@ -26,7 +26,6 @@ class SubscriptionReminderService:
             subscription_repo.get_active()
         )
 
-
         now = datetime.now(
             timezone.utc
         )
@@ -34,10 +33,8 @@ class SubscriptionReminderService:
 
         for subscription in subscriptions:
 
-
             if not subscription.expires_at:
                 continue
-
 
 
             days_left = (
@@ -47,16 +44,13 @@ class SubscriptionReminderService:
             ).days
 
 
-
             if days_left not in [7, 3, 1]:
                 continue
-
 
 
             notification_type = (
                 f"expires_{days_left}_days"
             )
-
 
 
             exists = db.fetchone(
@@ -73,10 +67,8 @@ class SubscriptionReminderService:
             )
 
 
-
             if exists:
                 continue
-
 
 
             user = users_repo.get_by_id(
@@ -84,8 +76,8 @@ class SubscriptionReminderService:
             )
 
 
-
             if user is None:
+
                 logger.warning(
                     "User not found subscription={}",
                     subscription.id,
@@ -94,16 +86,14 @@ class SubscriptionReminderService:
                 continue
 
 
-
             try:
-
 
                 await telegram_service.send_expire_warning(
                     user_id=user.telegram_id,
                     days=days_left,
                     expires_at=subscription.expires_at,
+                    subscription=subscription,
                 )
-
 
 
                 db.execute(
@@ -126,18 +116,14 @@ class SubscriptionReminderService:
                 )
 
 
-
                 logger.info(
-                    "Subscription reminder sent "
-                    "subscription={} days={}",
+                    "Subscription reminder sent subscription={} days={}",
                     subscription.id,
                     days_left,
                 )
 
 
-
             except Exception:
-
 
                 logger.exception(
                     "Reminder failed subscription={}",
