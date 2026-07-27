@@ -643,21 +643,7 @@ async def filter_users(
     ]
 
 
-@router.get("/subscriptions")
-async def admin_subscriptions(
-    page: int = 1,
-    admin = Depends(get_current_user),
-):
 
-    subscriptions = await admin_service.get_subscriptions_page(
-        page
-    )
-
-    return subscriptions
-
-@router.get(
-    "/api/v1/admin/subscriptions"
-)
 async def admin_subscriptions(
     admin = Depends(get_current_admin),
 ):
