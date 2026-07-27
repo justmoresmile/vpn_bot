@@ -14,6 +14,7 @@ from app.bot.keyboards.subscription_menu import (
 from app.ui.screens.subscription import (
     subscription_screen,
 )
+from app.ui.screens.subscription import no_subscription_screen
 
 
 router = Router()
@@ -45,35 +46,7 @@ async def my_vpn(
         subscription = subscriptions[0]
 
 
-        expires = datetime.fromisoformat(
-            subscription["expires_at"]
-        )
-
-
-        days_left = max(
-            0,
-            (
-                expires - datetime.now()
-            ).days,
-        )
-
-
-        if (
-            subscription["status"] == "active"
-            and days_left > 0
-        ):
-
-            status = "🟢 <b>Подписка активна</b>"
-
-
-        elif subscription["status"] == "active":
-
-            status = "🟠 <b>Подписка истекла</b>"
-
-
-        else:
-
-            status = "🔴 <b>Подписка неактивна</b>"
+        
 
 
 
