@@ -31,6 +31,12 @@ from app.ui.screens.admin import (
     admin_payments_screen,
     admin_subscriptions_screen,
 )
+from app.bot.keyboards.admin import (
+    admin_users_pages,
+    admin_user_menu,
+    admin_subscription_menu,
+    admin_subscriptions_keyboard,
+)
 
 router = Router()
 
@@ -245,39 +251,27 @@ async def admin_subscriptions(
     callback: CallbackQuery,
 ):
 
-    subscriptions = await api_client.get_admin_subscriptions(
+    data = await api_client.get_admin_subscriptions(
         callback.from_user.id
     )
-
-
-    text = admin_subscriptions_screen(
-        subscriptions
-    )
-
+    print(data)
 
     try:
 
-        from app.bot.keyboards.admin import (
-    admin_subscriptions_keyboard,
-)
-
-
         await callback.message.edit_text(
             admin_subscriptions_screen(
-                subscriptions
+                data["subscriptions"]
             ),
             parse_mode="HTML",
             reply_markup=admin_subscriptions_keyboard(
-                subscriptions
+                data["subscriptions"]
             ),
         )
 
     except Exception as e:
 
         if "message is not modified" not in str(e):
-
             raise
-
 
     await callback.answer()
 
@@ -488,9 +482,9 @@ async def admin_user_payments(
 
 
 @router.callback_query(
-F.data.startswith(
-    "admin_subscription:"
-)
+    F.data.startswith(
+        "admin_subscription:"
+    )
 )
 async def admin_subscription(
     callback: CallbackQuery,
@@ -500,11 +494,11 @@ async def admin_subscription(
         callback.data.split(":")[1]
     )
 
-
-    subscriptions = await api_client.get_admin_subscriptions(
+    data = await api_client.get_admin_subscriptions(
         callback.from_user.id
     )
-
+    print(data)
+    subscriptions = data["subscriptions"]
 
     subscription = next(
         (
@@ -514,7 +508,6 @@ async def admin_subscription(
         ),
         None,
     )
-
 
     if subscription is None:
 
@@ -525,29 +518,23 @@ async def admin_subscription(
 
         return
 
-
-
     await callback.message.edit_text(
-
         admin_subscription_screen(
             subscription
         ),
-
         parse_mode="HTML",
-
         reply_markup=admin_subscription_menu(
             subscription_id
         ),
     )
 
-
     await callback.answer()
 
 
+
+
 @router.callback_query(
-F.data.startswith(
-    "admin_sub_renew:"
-)
+    F.data.startswith("admin_sub_renew:")
 )
 async def admin_subscription_renew(
     callback: CallbackQuery,
@@ -557,36 +544,33 @@ async def admin_subscription_renew(
         callback.data.split(":")[1]
     )
 
-
-    result = await api_client.renew_subscription(
+    await api_client.renew_subscription(
         callback.from_user.id,
+        
         subscription_id,
         30,
     )
-
 
     await callback.answer(
         "✅ Подписка продлена на 30 дней",
         show_alert=True,
     )
 
-
-    subscriptions = await api_client.get_admin_subscriptions(
+    data = await api_client.get_admin_subscriptions(
         callback.from_user.id
+       
     )
-
-
+    print(data)
     subscription = next(
         (
             sub
-            for sub in subscriptions
+            for sub in data["subscriptions"]
             if sub["id"] == subscription_id
         ),
         None,
     )
 
-
-    if subscription:
+    if subscription is not None:
 
         await callback.message.edit_text(
             admin_subscription_screen(
@@ -597,30 +581,6 @@ async def admin_subscription_renew(
                 subscription_id
             ),
         )
-
-
-@router.callback_query(
-F.data.startswith("admin_sub_renew:")
-)
-async def admin_sub_renew(
-    callback: CallbackQuery,
-):
-
-    subscription_id = int(
-        callback.data.split(":")[1]
-    )
-
-
-    result = await api_client.renew_subscription(
-        callback.from_user.id,
-        subscription_id,
-        30,
-    )
-
-
-    await callback.answer(
-        "✅ Подписка продлена на 30 дней"
-    )
 
 
 
@@ -635,17 +595,37 @@ async def admin_sub_disable(
         callback.data.split(":")[1]
     )
 
-
     await api_client.disable_subscription(
         callback.from_user.id,
         subscription_id,
     )
 
+    data = await api_client.get_admin_subscriptions(
+        callback.from_user.id,
+    )
+    print(data)
+    subscription = next(
+        (
+            sub
+            for sub in data["subscriptions"]
+            if sub["id"] == subscription_id
+        ),
+        None,
+    )
+
+    if subscription:
+
+        await callback.message.edit_text(
+            admin_subscription_screen(subscription),
+            parse_mode="HTML",
+            reply_markup=admin_subscription_menu(
+                subscription_id
+            ),
+        )
 
     await callback.answer(
         "⛔ Подписка отключена"
     )
-
 
 
 @router.callback_query(
@@ -659,18 +639,37 @@ async def admin_sub_restore(
         callback.data.split(":")[1]
     )
 
-
     await api_client.restore_subscription(
         callback.from_user.id,
         subscription_id,
     )
 
+    data = await api_client.get_admin_subscriptions(
+        callback.from_user.id,
+    )
+    print(data)
+    subscription = next(
+        (
+            sub
+            for sub in data["subscriptions"]
+            if sub["id"] == subscription_id
+        ),
+        None,
+    )
+
+    if subscription:
+
+        await callback.message.edit_text(
+            admin_subscription_screen(subscription),
+            parse_mode="HTML",
+            reply_markup=admin_subscription_menu(
+                subscription_id
+            ),
+        )
 
     await callback.answer(
         "♻️ Подписка восстановлена"
     )
-
-
 
 @router.callback_query(
     F.data.startswith("admin_sub_delete:")
@@ -683,18 +682,28 @@ async def admin_sub_delete(
         callback.data.split(":")[1]
     )
 
-
     await api_client.delete_subscription(
         callback.from_user.id,
         subscription_id,
     )
 
+    data = await api_client.get_admin_subscriptions(
+        callback.from_user.id,
+    )
+    print(data)
+    await callback.message.edit_text(
+        admin_subscriptions_screen(
+            data["subscriptions"]
+        ),
+        parse_mode="HTML",
+        reply_markup=admin_subscriptions_keyboard(
+            data["subscriptions"]
+        ),
+    )
 
     await callback.answer(
         "🗑 Подписка удалена"
     )
-
-
 
 @router.callback_query(
     F.data.startswith("admin_sub_config:")

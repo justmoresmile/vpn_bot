@@ -162,19 +162,6 @@ class AdminAPI(BaseAPI):
 
         return response
 
-    async def get_admin_subscriptions(
-        self,
-        telegram_id: int,
-    ):
-
-        response = await self._get(
-            telegram_id,
-            "/api/v1/admin/subscriptions",
-        )
-
-        return response.json()
-
-
     async def get_admin_user_payments(
         self,
         telegram_id: int,
