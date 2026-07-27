@@ -190,7 +190,6 @@ def instruction_screen() -> str:
         "Если возникли проблемы — обратитесь в поддержку."
     )
 
-def instruction_screen() -> str:
 
     return """
         <b>📖 Инструкция по подключению JustVPN</b>
