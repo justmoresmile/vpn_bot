@@ -316,12 +316,21 @@ class AdminService:
     async def disable_subscription(
         self,
         subscription_id: int,
-    ) -> Subscription:
+    ) -> Subscription | None:
 
-        return await vpn_service.disable(
-            subscription_id,
+        subscription = (
+            subscription_repo.get_by_id(
+                subscription_id
+            )
         )
 
+        if subscription is None:
+            return None
+
+
+        return await vpn_service.disable(
+            subscription,
+        )
 
 
     async def delete_subscription(
