@@ -146,7 +146,9 @@ class VPNService:
         subscription_repo.update(
             renewed
         )
-
+        subscription_notification_repo.delete_by_subscription(
+            renewed.id
+        )
 
         
 
@@ -160,7 +162,7 @@ class VPNService:
         return renewed
 
     
-
+    
     async def extend(
         self,
         subscription_id: int,
