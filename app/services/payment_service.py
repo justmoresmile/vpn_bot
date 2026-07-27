@@ -244,7 +244,7 @@ class PaymentService:
                 await telegram_service.send_renew_notification(
                     user.telegram_id,
                     old_date=(
-                        subscription.old_expires_at.strftime(
+                        old_expires_at.strftime(
                             "%d.%m.%Y %H:%M"
                         )
                     ),
