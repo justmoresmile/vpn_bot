@@ -442,4 +442,22 @@ class SubscriptionRepository:
 
         return row["total"]
 
+
+
+
+    @staticmethod
+    def clear_notifications(
+        subscription_id: int,
+    ):
+
+        db.execute(
+            """
+            DELETE FROM subscription_notifications
+            WHERE subscription_id = ?
+            """,
+            (
+                subscription_id,
+            ),
+        )
+
 subscription_repo = SubscriptionRepository()

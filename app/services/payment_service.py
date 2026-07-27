@@ -11,6 +11,9 @@ from app.services.vpn_service import vpn_service
 from app.bot.services import telegram_service
 from app.repositories.user_repository import users_repo
 from app.services.subscription_service import subscription_service
+from app.repositories.subscription_repository import (
+    subscription_repo,
+)
 
 class PaymentService:
 
@@ -206,6 +209,10 @@ class PaymentService:
 
             subscription.old_expires_at = old_expires_at
 
+
+            subscription_repo.clear_notifications(
+                subscription.id
+            )
 
         else:
 

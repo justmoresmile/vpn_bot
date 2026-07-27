@@ -112,18 +112,20 @@ def create_tables():
     db.execute("""
     CREATE TABLE IF NOT EXISTS subscription_notifications
     (
-
         id INTEGER PRIMARY KEY AUTOINCREMENT,
 
         subscription_id INTEGER NOT NULL,
 
         notification_type TEXT NOT NULL,
 
+        expires_at INTEGER NOT NULL,
+
         created_at INTEGER NOT NULL,
 
         UNIQUE(
             subscription_id,
-            notification_type
+            notification_type,
+            expires_at
         )
     )
-    """)
+        """)

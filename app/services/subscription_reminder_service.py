@@ -59,10 +59,14 @@ class SubscriptionReminderService:
                 FROM subscription_notifications
                 WHERE subscription_id = ?
                 AND notification_type = ?
+                AND expires_at = ?
                 """,
                 (
                     subscription.id,
                     notification_type,
+                    int(
+                        subscription.expires_at.timestamp()
+                    ),
                 ),
             )
 
@@ -97,18 +101,22 @@ class SubscriptionReminderService:
 
 
                 db.execute(
-                    """
-                    INSERT INTO subscription_notifications
-                    (
-                        subscription_id,
-                        notification_type,
-                        created_at
-                    )
-                    VALUES (?, ?, ?)
-                    """,
+                """
+                INSERT INTO subscription_notifications
+                (
+                    subscription_id,
+                    notification_type,
+                    expires_at,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?)
+                """,
                     (
                         subscription.id,
                         notification_type,
+                        int(
+                            subscription.expires_at.timestamp()
+                        ),
                         int(
                             datetime.now().timestamp()
                         ),
