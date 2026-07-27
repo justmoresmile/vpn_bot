@@ -1,9 +1,5 @@
-from datetime import datetime
-import traceback
-
 from aiogram import F, Router
 from aiogram.types import Message
-
 
 from app.bot.clients.api_client import api_client
 
@@ -13,8 +9,8 @@ from app.bot.keyboards.subscription_menu import (
 
 from app.ui.screens.subscription import (
     subscription_screen,
+    no_subscription_screen,
 )
-from app.ui.screens.subscription import no_subscription_screen
 
 
 router = Router()
@@ -25,61 +21,33 @@ async def my_vpn(
     message: Message,
 ):
 
-    try:
-
-        subscriptions = await api_client.get_subscriptions(
-            message.from_user.id
-        )
+    subscriptions = await api_client.get_subscriptions(
+        message.from_user.id
+    )
 
 
-        if not subscriptions:
-
-            await message.answer(
-                no_subscription_screen(),
-                parse_mode="HTML",
-            )
-
-            return
-
-
-
-        subscription = subscriptions[0]
-
-
-        
-
-
+    if not subscriptions:
 
         await message.answer(
-
-            subscription_screen(
-
-                status=status,
-
-                expires=expires.strftime(
-                    "%d.%m.%Y %H:%M"
-                ),
-
-                days_left=days_left,
-
-                protocol=subscription["protocol"].title(),
-
-            ),
-
+            no_subscription_screen(),
             parse_mode="HTML",
-
-            reply_markup=subscription_actions_menu(
-                subscription
-            ),
-
         )
 
-
-    except Exception:
-
-        traceback.print_exc()
+        return
 
 
-        await message.answer(
-            "❌ Внутренняя ошибка."
-        )
+    subscription = subscriptions[0]
+
+
+    await message.answer(
+
+        subscription_screen(
+            subscription
+        ),
+
+        parse_mode="HTML",
+
+        reply_markup=subscription_actions_menu(
+            subscription
+        ),
+    )
