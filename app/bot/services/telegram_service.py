@@ -105,11 +105,16 @@ class TelegramService:
 
 
 
+            await bot.send_message(
+                chat_id=user_id,
+                text=payment_success_screen(),
+                parse_mode=ParseMode.HTML,
+            )
+
+
             await bot.send_document(
                 chat_id=user_id,
                 document=file,
-                caption=payment_success_screen(),
-                parse_mode=ParseMode.HTML,
                 reply_markup=keyboard,
             )
 
