@@ -6,7 +6,6 @@ from aiogram.types import (
 
 from app.bot.keyboards.main_menu import main_menu
 from app.ui.screens.instruction import instruction_screen
-from app.ui.screens.common import support_screen
 
 router = Router()
 
