@@ -1,4 +1,5 @@
 from aiogram import F, Router
+
 from aiogram.types import (
     Message,
     CallbackQuery,
@@ -6,16 +7,30 @@ from aiogram.types import (
     InlineKeyboardButton,
 )
 
+
 from app.bot.clients.api_client import api_client
+
 
 from app.bot.keyboards.tariff_menu import tariff_menu
 from app.bot.keyboards.main_menu import main_menu
-from app.ui.screens.payment import (
-    payment_success_screen,
+
+
+from app.ui.screens.buy import (
+    buy_screen,
 )
 
 
+from app.ui.screens.payment import (
+    payment_screen,
+)
+
+
+from app.logger import logger
+
+
+
 router = Router()
+
 
 
 TARIFF_NAMES = {
@@ -26,8 +41,12 @@ TARIFF_NAMES = {
 }
 
 
+
+
 @router.message(F.text == "🚀 Получить VPN")
-async def buy(message: Message):
+async def buy(
+    message: Message,
+):
 
     await message.answer(
         buy_screen(),
@@ -36,7 +55,12 @@ async def buy(message: Message):
     )
 
 
-@router.callback_query(F.data.startswith("buy:"))
+
+
+
+@router.callback_query(
+    F.data.startswith("buy:")
+)
 async def buy_subscription(
     callback: CallbackQuery,
 ):
@@ -45,20 +69,28 @@ async def buy_subscription(
         callback.data.split(":")[1]
     )
 
+
     await create_subscription(
         message=callback.message,
         days=days,
     )
 
+
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("renew_buy:"))
+
+
+
+@router.callback_query(
+    F.data.startswith("renew_buy:")
+)
 async def renew_subscription(
     callback: CallbackQuery,
 ):
 
     _, subscription_id, days = callback.data.split(":")
+
 
     await create_subscription(
         message=callback.message,
@@ -66,10 +98,16 @@ async def renew_subscription(
         subscription_id=int(subscription_id),
     )
 
+
     await callback.answer()
 
 
-@router.callback_query(F.data == "main_menu")
+
+
+
+@router.callback_query(
+    F.data == "main_menu"
+)
 async def back_to_main_callback(
     callback: CallbackQuery,
 ):
@@ -79,10 +117,16 @@ async def back_to_main_callback(
         reply_markup=main_menu,
     )
 
+
     await callback.answer()
 
 
-@router.message(F.text == "🏠 Главное меню")
+
+
+
+@router.message(
+    F.text == "🏠 Главное меню"
+)
 async def back_to_main(
     message: Message,
 ):
@@ -93,6 +137,11 @@ async def back_to_main(
     )
 
 
+
+
+
+
+
 async def create_subscription(
     message: Message,
     days: int,
@@ -101,12 +150,15 @@ async def create_subscription(
 
     try:
 
+
         payment = await api_client.create_purchase(
             telegram_id=message.chat.id,
             protocol="wireguard",
             days=days,
             subscription_id=subscription_id,
         )
+
+
 
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
@@ -119,6 +171,8 @@ async def create_subscription(
             ]
         )
 
+
+
         await message.answer(
             payment_screen(
                 tariff=TARIFF_NAMES[days],
@@ -128,13 +182,15 @@ async def create_subscription(
             reply_markup=keyboard,
         )
 
+
+
     except Exception:
 
-        from app.logger import logger
 
         logger.exception(
             "Payment creation failed"
         )
+
 
         await message.answer(
             "❌ Ошибка создания платежа.",
