@@ -186,7 +186,25 @@ class PaymentService:
             )
 
 
-            
+            old_subscription = (
+                subscription_service
+                .get_by_id(
+                    payment.subscription_id
+                )
+            )
+
+
+            if old_subscription is None:
+                logger.error(
+                    f"Subscription not found {payment.subscription_id}"
+                )
+
+                return payment
+
+
+            old_expires_at = (
+                old_subscription.expires_at
+            )
 
 
             subscription = await vpn_service.extend(
