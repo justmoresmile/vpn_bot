@@ -70,11 +70,12 @@ async def my_subscriptions(
     )
 
     return [
-        SubscriptionShortResponse(
-            id=s.id,
-            protocol=s.protocol,
-            status=s.status.value,
-            expires_at=s.expires_at,
+    SubscriptionShortResponse(
+        id=s.id,
+        protocol=s.protocol,
+        status=s.status.value,
+        expires_at=s.expires_at,
+        client_email=s.client_email,
         )
         for s in subscriptions
     ]

@@ -28,7 +28,8 @@ class SubscriptionShortResponse(BaseModel):
     status: str
 
     expires_at: datetime
-
+    
+    client_email: str | None = None
 
 
 class ConfigResponse(BaseModel):
