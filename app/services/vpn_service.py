@@ -6,6 +6,9 @@ from app.protocols.handlers.base import ProtocolHandler
 from app.repositories.subscription_repository import subscription_repo
 from app.services.xui_client import XUIClient
 from app.services.server_service import server_service
+from app.repositories.subscription_notification_repository import (
+    subscription_notification_repo,
+)
 
 class VPNService:
 
@@ -157,10 +160,25 @@ class VPNService:
         days: int,
     ) -> Subscription:
 
-        return await self.renew(
+
+        subscription = await self.renew(
             subscription_id,
             days,
         )
+
+
+        subscription_notification_repo.delete_by_subscription(
+            subscription.id
+        )
+
+
+        logger.info(
+            "Notifications reset for subscription {}",
+            subscription.id,
+        )
+
+
+        return subscription
 
 
     async def disable(
