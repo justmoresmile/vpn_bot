@@ -2,6 +2,13 @@ def subscription_screen(
     subscription: dict,
 ) -> str:
 
+    def no_subscription_screen() -> str:
+
+        return (
+            "<b>📡 Подписок нет</b>\n\n"
+            "У вас нет активной VPN подписки."
+        )
+
     expires = subscription.get(
         "expires_at",
         "-"
