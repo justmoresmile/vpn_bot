@@ -12,7 +12,7 @@ from app.bot.keyboards.subscription_menu import (
 )
 
 from app.ui.screens.subscription import (
-    my_vpn_screen,
+    subscription_screen,
 )
 
 
