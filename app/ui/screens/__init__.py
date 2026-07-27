@@ -24,6 +24,8 @@ from .profile import (
 )
 
 from .common import (
-    instruction_screen,
+    
     support_screen,
 )
+
+from .instruction import vpn_instruction_screen
