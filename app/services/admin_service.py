@@ -444,7 +444,6 @@ class AdminService:
         }
 
 
-
     async def get_subscriptions_page(
         self,
         page: int = 1,
@@ -473,7 +472,9 @@ class AdminService:
 
 
         return {
+
             "subscriptions": [
+
                 {
                     "id": sub.id,
 
@@ -489,10 +490,14 @@ class AdminService:
                         "%d.%m.%Y %H:%M"
                     ),
                 }
-                for sub in subscriptions
-            ],
-            "page": page,
-            "pages": pages,
-        }
 
+                for sub in subscriptions
+
+            ],
+
+            "page": page,
+
+            "pages": pages,
+
+        }
 admin_service = AdminService()
