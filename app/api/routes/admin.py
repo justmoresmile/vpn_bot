@@ -534,42 +534,21 @@ async def broadcast(
 
     return result
 
-@router.get(
-"/subscriptions",
-)
-async def get_subscriptions(
-    user: User = Depends(
-        get_current_user
-    ),
+
+
+@router.get("/subscriptions")
+async def admin_subscriptions(
+    page: int = 1,
+    admin: User = Depends(get_current_user),
 ):
 
-    if not user.is_admin:
-
+    if not admin.is_admin:
         raise HTTPException(
             status_code=403,
             detail="Access denied",
         )
 
-
-    subscriptions = (
-        subscription_repo.get_all()
-    )
-
-
-    return [
-        {
-            "id": x.id,
-            "user_id": x.user_id,
-            "protocol": x.protocol,
-            "status": x.status.value,
-            "expires_at": x.expires_at,
-        }
-        for x in subscriptions
-    ]
-
-
-
-
+    return await admin_service.get_subscriptions_page(page)
 
 
 
