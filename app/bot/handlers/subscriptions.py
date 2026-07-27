@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from aiogram import F, Router
 from aiogram.types import Message
 
@@ -8,7 +10,7 @@ from app.bot.keyboards.subscription_menu import (
 )
 
 from app.ui.screens.subscription import (
-    subscription_screen,
+    my_vpn_screen,
     no_subscription_screen,
 )
 
@@ -39,10 +41,24 @@ async def my_vpn(
     subscription = subscriptions[0]
 
 
+    expires = datetime.fromisoformat(
+        subscription["expires_at"]
+    )
+
+
+    days_left = max(
+        0,
+        (
+            expires - datetime.now()
+        ).days,
+    )
+
+
     await message.answer(
 
-        subscription_screen(
-            subscription
+        my_vpn_screen(
+            subscription=subscription,
+            days_left=days_left,
         ),
 
         parse_mode="HTML",

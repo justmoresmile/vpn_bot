@@ -45,13 +45,45 @@ def no_subscription_screen() -> str:
     )
 
 
-
 def my_vpn_screen(
     subscription: dict,
+    days_left: int,
 ) -> str:
 
-    return subscription_screen(subscription)
+    expires = subscription.get(
+        "expires_at",
+        "-"
+    )
 
+    if "T" in expires:
+        expires = expires.split("T")[0]
+
+        year, month, day = expires.split("-")
+        expires = f"{day}.{month}.{year}"
+
+
+    email = subscription.get(
+        "client_email",
+        "-"
+    )
+
+
+    return (
+        "🔐 <b>Ваш JustVPN</b>\n\n"
+
+        f"📧 <b>Профиль:</b>\n"
+        f"<code>{email}</code>\n\n"
+
+        f"📅 <b>Действует до:</b>\n"
+        f"{expires}\n\n"
+
+        f"⏳ <b>Осталось:</b>\n"
+        f"{days_left} дней\n\n"
+
+        "🚀 VPN работает.\n\n"
+
+        "Спасибо что пользуетесь нашим сервисом ❤️"
+    )
 
 def subscription_renew_success_screen(
     old_date: str,
