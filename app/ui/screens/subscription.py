@@ -1,15 +1,27 @@
 def subscription_screen(
     subscription,
+    status=None,
 ) -> str:
+
+    current_status = (
+        status
+        if status
+        else subscription.status
+    )
+
+    subscription_status = (
+        current_status.value
+        if hasattr(current_status, "value")
+        else current_status
+    )
 
     return (
         "<b>📡 Подписка</b>\n\n"
-        f"ID: <code>{subscription.id}</code>\n"
-        f"Протокол: {subscription.protocol}\n"
-        f"Статус: {subscription.status.value}\n"
-        f"До: {subscription.expires_at}\n"
+        f"🆔 ID: <code>{subscription.id}</code>\n"
+        f"🔌 Протокол: {subscription.protocol}\n"
+        f"📌 Статус: {subscription_status}\n"
+        f"📅 До: {subscription.expires_at}\n"
     )
-
 
 def no_subscription_screen() -> str:
 
