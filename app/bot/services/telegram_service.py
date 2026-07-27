@@ -116,5 +116,17 @@ class TelegramService:
         )
 
 
+    async def send_message(
+        self,
+        user_id: int,
+        text: str,
+    ):
+
+        await bot.send_message(
+            chat_id=user_id,
+            text=text,
+            parse_mode=ParseMode.HTML,
+        )
+
 
 telegram_service = TelegramService()

@@ -11,6 +11,9 @@ from app.services.sync_service import (
 from app.services.payment_service import (
     payment_service,
 )
+from app.services.subscription_reminder_service import (
+    subscription_reminder_service,
+)
 
 
 async def subscription_task():
@@ -33,8 +36,23 @@ async def subscription_task():
                 "Subscription sync failed."
             )
 
+
         try:
 
+            await subscription_reminder_service.run()
+
+        except Exception:
+
+            logger.exception(
+                "Subscription reminder failed."
+            )
+
+
+
+        
+
+        try:
+            
             await subscription_checker.run()
 
         except Exception:
@@ -60,3 +78,5 @@ async def subscription_task():
             )
 
         await asyncio.sleep(60)
+
+        
