@@ -7,6 +7,22 @@ class SubscriptionNotificationRepository:
 
 
     @staticmethod
+    def delete_by_subscription(
+        subscription_id: int,
+    ):
+
+        db.execute(
+            """
+            DELETE FROM subscription_notifications
+            WHERE subscription_id = ?
+            """,
+            (
+                subscription_id,
+            ),
+        )
+
+
+    @staticmethod
     def exists(
         subscription_id: int,
         notification_type: str,
@@ -57,6 +73,7 @@ class SubscriptionNotificationRepository:
                 ),
             ),
         )
+
 
 
 subscription_notification_repo = (
