@@ -196,6 +196,7 @@ class AdminAPI(BaseAPI):
         self,
         telegram_id: int,
         page: int = 1,
+        limit: int = 10,
     ):
 
         response = await self._get(
@@ -203,6 +204,108 @@ class AdminAPI(BaseAPI):
             "/api/v1/admin/subscriptions",
             params={
                 "page": page,
+                "limit": limit,
+            },
+        )
+
+        return response.json()
+
+
+    async def search_users(
+        self,
+        telegram_id: int,
+        query: str,
+    ):
+
+        response = await self._get(
+            telegram_id,
+            "/api/v1/admin/users/search",
+            params={
+                "q": query,
+            },
+        )
+
+        return response.json()
+
+
+
+    async def filter_users(
+        self,
+        telegram_id: int,
+        filter_type: str,
+    ):
+
+        response = await self._get(
+            telegram_id,
+            "/api/v1/admin/users/filter",
+            params={
+                "filter_type": filter_type,
+            },
+        )
+
+        return response.json()
+
+    async def get_active_users(
+        self,
+        telegram_id: int,
+    ):
+
+        response = await self._get(
+            telegram_id,
+            "/api/v1/admin/users/filter",
+            params={
+                "filter_type": "active",
+            },
+        )
+
+        return response.json()
+
+
+
+    async def get_users_without_subscription(
+        self,
+        telegram_id: int,
+    ):
+
+        response = await self._get(
+            telegram_id,
+            "/api/v1/admin/users/filter",
+            params={
+                "filter_type": "no_subscription",
+            },
+        )
+
+        return response.json()
+
+
+
+    async def get_expired_users(
+        self,
+        telegram_id: int,
+    ):
+
+        response = await self._get(
+            telegram_id,
+            "/api/v1/admin/users/filter",
+            params={
+                "filter_type": "expired",
+            },
+        )
+
+        return response.json()
+
+
+
+    async def get_admins(
+        self,
+        telegram_id: int,
+    ):
+
+        response = await self._get(
+            telegram_id,
+            "/api/v1/admin/users/filter",
+            params={
+                "filter_type": "admins",
             },
         )
 

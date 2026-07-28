@@ -23,9 +23,19 @@ async def my_vpn(
     message: Message,
 ):
 
-    subscriptions = await api_client.get_subscriptions(
-        message.from_user.id
-    )
+    try:
+
+        subscriptions = await api_client.get_subscriptions(
+            message.from_user.id
+        )
+
+    except Exception:
+
+        await message.answer(
+            "⚠️ Сначала нажмите /start"
+        )
+
+        return
 
 
     if not subscriptions:

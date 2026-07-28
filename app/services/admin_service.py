@@ -62,9 +62,9 @@ class AdminService:
 
 
     def search_users(
-        self,
+    self,
         query: str,
-    ) -> list[User]:
+    ):
 
         return users_repo.search(
             query
@@ -443,13 +443,11 @@ class AdminService:
             "pages": pages,
         }
 
-
     async def get_subscriptions_page(
         self,
         page: int = 1,
+        limit: int = 10,
     ):
-
-        limit = 10
 
         offset = (
             page - 1
@@ -499,5 +497,24 @@ class AdminService:
 
             "pages": pages,
 
+            "total": total,
+
         }
+
+
+
+
+    def get_subscription(
+        self,
+        subscription_id: int,
+    ) -> Subscription | None:
+
+        return (
+            subscription_repo
+            .get_by_id(
+                subscription_id
+            )
+        )
+
+
 admin_service = AdminService()

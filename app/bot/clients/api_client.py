@@ -19,4 +19,17 @@ class BackendAPIClient(
     pass
 
 
+    async def get_admin_user_card(
+        self,
+        telegram_id: int,
+        user_id: int,
+    ):
+
+        response = await self._get(
+            telegram_id,
+            f"/api/v1/admin/users/{user_id}/card",
+        )
+
+        return response.json()
+
 api_client = BackendAPIClient()

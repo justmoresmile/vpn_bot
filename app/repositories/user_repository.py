@@ -1,12 +1,12 @@
 from app.database.database import db
 from app.domain.user import User
 from app.config import settings
-
+from datetime import datetime
 
 class UsersRepository:
 
     @staticmethod
-    def _to_entity(row) -> User:
+    def _to_entity(row):
 
         return User(
             id=row["id"],
@@ -15,6 +15,12 @@ class UsersRepository:
             first_name=row["first_name"],
             is_admin=bool(row["is_admin"]),
             api_key=row["api_key"],
+            created_at=(
+                datetime.fromtimestamp(row["created_at"])
+                if "created_at" in row.keys()
+                and row["created_at"]
+                else None
+            ),
         )
 
 
@@ -180,42 +186,36 @@ class UsersRepository:
 
 
     @staticmethod
-    def search(
-        query: str,
-    ) -> list[User]:
+    def search(query: str):
 
         rows = db.fetchall(
             """
-            SELECT *
+            SELECT
+                id,
+                telegram_id,
+                username,
+                first_name,
+                is_admin,
+                api_key,
+                created_at
             FROM users
             WHERE
-
                 username LIKE ?
-
-                OR
-
-                first_name LIKE ?
-
-                OR
-
-                telegram_id LIKE ?
-
-            ORDER BY id DESC
+                OR first_name LIKE ?
+                OR telegram_id LIKE ?
             """,
             (
                 f"%{query}%",
                 f"%{query}%",
                 f"%{query}%",
-            ),
+            )
         )
+
 
         return [
             UsersRepository._to_entity(row)
             for row in rows
         ]
-
-
-
     # ==============================
     # ADMIN FILTERS
     # ==============================
@@ -314,7 +314,5 @@ class UsersRepository:
             UsersRepository._to_entity(row)
             for row in rows
         ]
-
-
 
 users_repo = UsersRepository()

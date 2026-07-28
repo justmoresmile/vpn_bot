@@ -526,6 +526,43 @@ class PaymentRepository:
 
         return row["total"]
 
+    def get_pending_by_user(
+        self,
+        user_id: int,
+        subscription_id: int | None,
+        days: int,
+    ):
 
 
+        row = db.fetchone(
+            """
+            SELECT *
+            FROM payments
+            WHERE user_id = ?
+            AND status = ?
+            AND subscription_days = ?
+            AND subscription_id IS ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (
+                user_id,
+                PaymentStatus.PENDING.value,
+                days,
+                subscription_id,
+            ),
+        )
+
+
+        if row is None:
+            return None
+
+
+        return self._to_entity(
+            row
+        )
+
+
+
+    
 payment_repo = PaymentRepository()

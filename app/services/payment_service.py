@@ -49,40 +49,85 @@ class PaymentService:
         subscription_id: int | None = None,
     ) -> Payment:
 
+
         amount = self.calculate_price(
             days
         )
 
-        payment = yookassa_client.create_payment(
-            amount=amount,
-            description=f"VPN {protocol.upper()} {days} дней",
+
+        #
+        # Проверяем есть ли уже активный платеж
+        #
+        existing_payment = (
+            payment_repo.get_pending_by_user(
+                user_id=user_id,
+                subscription_id=subscription_id,
+                days=days,
+            )
         )
 
-        entity = Payment(
-            id=None,
-            user_id=user_id,
-            subscription_id=subscription_id,
-            protocol=protocol,
-            subscription_days=days,
+
+        if existing_payment:
+
+            logger.info(
+                f"Existing pending payment found "
+                f"id={existing_payment.id}"
+            )
+
+            return existing_payment
+
+
+
+        #
+        # Создаем новый платеж YooKassa
+        #
+        payment = yookassa_client.create_payment(
             amount=amount,
+            description=(
+                f"VPN {protocol.upper()} {days} дней"
+            ),
+        )
+
+
+
+        entity = Payment(
+
+            id=None,
+
+            user_id=user_id,
+
+            subscription_id=subscription_id,
+
+            protocol=protocol,
+
+            subscription_days=days,
+
+            amount=amount,
+
             currency="RUB",
+
             provider="yookassa",
+
             provider_payment_id=payment.id,
+
             confirmation_url=(
                 payment.confirmation.confirmation_url
                 if payment.confirmation
                 else None
             ),
+
             status=PaymentStatus.PENDING,
+
             created_at=datetime.now(),
+
             paid_at=None,
+
         )
 
-        payment = payment_repo.create(
+
+        return payment_repo.create(
             entity
         )
-
-        return payment
 
 
     def get_payment(

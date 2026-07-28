@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-
+from datetime import datetime
 
 @dataclass(slots=True, frozen=True)
 class User:
@@ -12,3 +12,4 @@ class User:
 
     is_admin: bool = False
     api_key: str | None = None
+    created_at: datetime | None = None

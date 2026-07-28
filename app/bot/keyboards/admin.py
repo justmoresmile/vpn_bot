@@ -232,4 +232,35 @@ def admin_subscription_menu(
 
     return kb.as_markup()
 
-    
+def admin_users_result_keyboard(
+    users: list,
+):
+
+    kb = InlineKeyboardBuilder()
+
+
+    for user in users:
+
+        username = (
+            f"@{user['username']}"
+            if user.get("username")
+            else str(user["id"])
+        )
+
+
+        kb.button(
+            text=f"👤 {username}",
+            callback_data=f"admin_user:{user['id']}",
+        )
+
+
+    kb.button(
+        text="🔙 Назад",
+        callback_data="admin_back",
+    )
+
+
+    kb.adjust(1)
+
+
+    return kb.as_markup()

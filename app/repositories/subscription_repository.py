@@ -230,8 +230,11 @@ class SubscriptionRepository:
                 SubscriptionStatus.DELETED,
             ),
         )
+        if row is None:
+              return None
 
-
+        return SubscriptionRepository._to_entity(row)
+        
     @staticmethod
     def get_expired_active(
     ) -> list[Subscription]:
@@ -480,5 +483,43 @@ class SubscriptionRepository:
                 subscription_id,
             ),
         )
+
+
+    @staticmethod
+    def get_admin_subscriptions(
+        page: int = 1,
+        limit: int = 20,
+    ) -> tuple[list[Subscription], int]:
+
+        offset = (page - 1) * limit
+
+        rows = db.fetchall(
+            """
+            SELECT *
+            FROM subscriptions
+            ORDER BY id DESC
+            LIMIT ?
+            OFFSET ?
+            """,
+            (
+                limit,
+                offset,
+            ),
+        )
+
+        subscriptions = [
+            SubscriptionRepository._to_entity(row)
+            for row in rows
+        ]
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM subscriptions
+            """
+        )
+
+        return subscriptions, row["total"]
+
 
 subscription_repo = SubscriptionRepository()

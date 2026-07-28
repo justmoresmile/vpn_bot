@@ -36,10 +36,15 @@ from app.bot.keyboards.admin import (
     admin_user_menu,
     admin_subscription_menu,
     admin_subscriptions_keyboard,
+    admin_users_result_keyboard,
 )
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 
 router = Router()
+class AdminSearchState(StatesGroup):
 
+    waiting_query = State()
 
 
 async def _is_admin(
@@ -332,16 +337,27 @@ async def admin_user(
     )
 
 
-    user = await api_client.get_admin_user(
-        callback.from_user.id,
-        user_id,
+    card = await api_client.get_admin_user_card(
+    callback.from_user.id,
+    user_id,
     )
+    text = (
+            "👤 <b>Карточка пользователя</b>\n\n"
 
+            f"🆔 ID: <code>{card['id']}</code>\n"
+            f"📱 TG: <code>{card['telegram_id']}</code>\n"
+            f"Username: @{card['username']}\n"
+            f"Имя: {card['first_name']}\n\n"
+
+            f"📡 Подписок: {card['subscriptions_count']}\n"
+            f"💳 Платежей: {card['payments_count']}\n"
+            f"💰 Потрачено: {card['total_paid']} ₽"
+        )
 
     await callback.message.edit_text(
 
         admin_user_screen(
-            user
+            card
         ),
 
         parse_mode="HTML",
@@ -408,17 +424,24 @@ async def admin_user_subs(
             )
 
 
-    await callback.message.edit_text(
+    try:
 
-        text,
+        await callback.message.edit_text(
 
-        parse_mode="HTML",
+            text,
 
-        reply_markup=admin_user_menu(
-            user_id
-        ),
+            parse_mode="HTML",
 
-    )
+            reply_markup=admin_user_menu(
+                user_id
+            ),
+
+        )
+
+    except Exception as e:
+
+        if "message is not modified" not in str(e):
+            raise
 
 
     await callback.answer()
@@ -469,13 +492,20 @@ async def admin_user_payments(
             )
 
 
-    await callback.message.edit_text(
-        text,
-        parse_mode="HTML",
-        reply_markup=admin_user_menu(
-            user_id
-        ),
-    )
+    try:
+
+        await callback.message.edit_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=admin_user_menu(
+                user_id
+            ),
+        )
+
+    except Exception as e:
+
+        if "message is not modified" not in str(e):
+            raise
 
 
     await callback.answer()
@@ -733,6 +763,206 @@ async def admin_sub_config(
         text,
         parse_mode="HTML",
     )
+
+
+    await callback.answer()
+
+
+
+@router.callback_query(
+    F.data == "admin_search_users"
+)
+async def admin_search_start(
+    callback: CallbackQuery,
+    state: FSMContext,
+):
+
+    await state.set_state(
+        AdminSearchState.waiting_query
+    )
+
+    await callback.message.answer(
+        "🔎 Введите username, имя или Telegram ID:"
+    )
+
+    await callback.answer()
+
+
+
+@router.message(
+    AdminSearchState.waiting_query
+)
+async def admin_search_result(
+    message: Message,
+    state: FSMContext,
+):
+
+    query = message.text
+
+
+    users = await api_client.search_users(
+        message.from_user.id,
+        query,
+    )
+
+
+    if not users:
+
+        await message.answer(
+            "❌ Пользователи не найдены",
+            reply_markup=admin_menu(),
+        )
+
+        await state.clear()
+
+        return
+
+
+
+    text = (
+        "🔎 <b>Результаты поиска</b>\n\n"
+    )
+
+
+    for user in users:
+
+        text += (
+            f"👤 ID: <code>{user['id']}</code>\n"
+            f"📱 TG: <code>{user['telegram_id']}</code>\n"
+            f"Username: @{user['username']}\n"
+            f"Имя: {user['first_name']}\n\n"
+        )
+
+
+    await message.answer(
+        text,
+        parse_mode="HTML",
+        reply_markup=admin_users_result_keyboard(
+            [
+                {
+                    "id": user["id"],
+                    "username": user["username"],
+                }
+                for user in users
+            ]
+        ),
+    )
+
+
+    await state.clear()
+
+@router.callback_query(
+    F.data.startswith("admin_filter:")
+)
+async def admin_filter_users(
+    callback: CallbackQuery,
+):
+
+    filter_type = callback.data.split(":")[1]
+
+
+    if filter_type == "active":
+
+        users = await api_client.get_active_users(
+            callback.from_user.id
+        )
+
+        title = "🟢 Активные пользователи"
+
+
+    elif filter_type == "no_subscription":
+
+        users = await api_client.get_users_without_subscription(
+            callback.from_user.id
+        )
+
+        title = "❌ Пользователи без подписки"
+
+
+    elif filter_type == "expired":
+
+        users = await api_client.get_expired_users(
+            callback.from_user.id
+        )
+
+        title = "🔴 Истекшие подписки"
+
+
+    elif filter_type == "admins":
+
+        users = await api_client.get_admins(
+            callback.from_user.id
+        )
+
+        title = "👑 Администраторы"
+
+
+    else:
+
+        await callback.answer(
+            "Неизвестный фильтр"
+        )
+
+        return
+
+
+    if not users:
+
+        text = (
+            f"{title}\n\n"
+            "Пользователей нет"
+        )
+
+    else:
+
+        text = (
+            f"<b>{title}</b>\n\n"
+        )
+
+
+        for user in users:
+
+            username = (
+                f"@{user['username']}"
+                if user.get("username")
+                else "-"
+            )
+
+            first_name = (
+                user["first_name"]
+                if user.get("first_name")
+                else "-"
+            )
+
+
+            text += (
+                f"👤 ID: <code>{user['id']}</code>\n"
+                f"📱 TG: <code>{user['telegram_id']}</code>\n"
+                f"Username: {username}\n"
+                f"Имя: {first_name}\n\n"
+            )
+
+
+    try:
+
+        await callback.message.edit_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=admin_users_result_keyboard(
+                [
+                    {
+                        "id": user["id"],
+                        "username": user["username"],
+                    }
+                    for user in users
+                ]   
+            ),
+        )
+
+    except Exception as e:
+
+        if "message is not modified" not in str(e):
+            raise
 
 
     await callback.answer()

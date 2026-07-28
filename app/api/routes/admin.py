@@ -8,7 +8,6 @@ from fastapi.responses import Response
 
 from app.api.dependencies.auth import (
     get_current_user,
-    get_current_admin,
 )
 from app.domain.user import User
 from app.services.admin_service import admin_service
@@ -132,6 +131,84 @@ async def get_users_page(
         ],
 
     }
+
+
+
+@router.get(
+"/users/search",
+)
+async def search_users(
+    q: str,
+    user: User = Depends(
+        get_current_user
+    ),
+):
+
+    if not user.is_admin:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied",
+        )
+
+
+    users = admin_service.search_users(
+        q
+    )
+
+
+    return [
+        {
+            "id": x.id,
+            "telegram_id": x.telegram_id,
+            "username": x.username,
+            "first_name": x.first_name,
+            "is_admin": x.is_admin,
+        }
+        for x in users
+    ]
+
+@router.get(
+    "/users/filter",
+)
+async def filter_users(
+    filter_type: str,
+    user: User = Depends(
+        get_current_user
+    ),
+):
+
+    if not user.is_admin:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied",
+        )
+
+
+    users = admin_service.filter_users(
+        filter_type
+    )
+
+
+    return [
+        {
+            "id": x.id,
+            "telegram_id": x.telegram_id,
+            "username": x.username,
+            "first_name": x.first_name,
+            "is_admin": x.is_admin,
+        }
+        for x in users
+    ]
+
+
+
+
+
+
+
+
 
 
 
@@ -539,6 +616,7 @@ async def broadcast(
 @router.get("/subscriptions")
 async def admin_subscriptions(
     page: int = 1,
+    limit: int = 10,
     admin: User = Depends(get_current_user),
 ):
 
@@ -548,98 +626,11 @@ async def admin_subscriptions(
             detail="Access denied",
         )
 
-    return await admin_service.get_subscriptions_page(page)
-
-
-
-
-@router.get(
-"/users/search",
-)
-async def search_users(
-    q: str,
-    user: User = Depends(
-        get_current_user
-    ),
-):
-
-    if not user.is_admin:
-
-        raise HTTPException(
-            status_code=403,
-            detail="Access denied",
-        )
-
-
-    users = admin_service.search_users(
-        q
+    return await admin_service.get_subscriptions_page(
+        page=page,
+        limit=limit,
     )
 
 
-    return [
-        {
-            "id": x.id,
-            "telegram_id": x.telegram_id,
-            "username": x.username,
-            "first_name": x.first_name,
-            "is_admin": x.is_admin,
-        }
-        for x in users
-    ]
-
-@router.get(
-    "/users/filter",
-)
-async def filter_users(
-    filter_type: str,
-    user: User = Depends(
-        get_current_user
-    ),
-):
-
-    if not user.is_admin:
-
-        raise HTTPException(
-            status_code=403,
-            detail="Access denied",
-        )
 
 
-    users = admin_service.filter_users(
-        filter_type
-    )
-
-
-    return [
-        {
-            "id": x.id,
-            "telegram_id": x.telegram_id,
-            "username": x.username,
-            "first_name": x.first_name,
-            "is_admin": x.is_admin,
-        }
-        for x in users
-    ]
-
-
-
-async def admin_subscriptions(
-    admin = Depends(get_current_admin),
-):
-
-    subscriptions = subscription_repo.get_all()
-
-
-    return [
-        {
-            "id": sub.id,
-            "user_id": sub.user_id,
-            "client_email": sub.client_email,
-            "protocol": sub.protocol,
-            "status": sub.status.value,
-            "expires_at": sub.expires_at.strftime(
-                "%d.%m.%Y %H:%M"
-            ),
-        }
-        for sub in subscriptions
-    ]
