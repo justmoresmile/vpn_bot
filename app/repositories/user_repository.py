@@ -59,6 +59,9 @@ class UsersRepository:
          is_admin = (
              user.telegram_id == settings.admin_id
          )
+         created_at = int(
+            datetime.now().timestamp()
+        )
  
          db.execute(
              """
