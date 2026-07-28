@@ -71,7 +71,7 @@ class UsersRepository:
                  username,
                  first_name,
                  is_admin,
-                 api_key
+                 api_key,
                  created_at
              )
              VALUES (?, ?, ?, ?, ?)
