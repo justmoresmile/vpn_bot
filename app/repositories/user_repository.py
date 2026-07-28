@@ -64,27 +64,27 @@ class UsersRepository:
         )
  
          db.execute(
-             """
-             INSERT INTO users
-             (
-                 telegram_id,
-                 username,
-                 first_name,
-                 is_admin,
-                 api_key,
-                 created_at
-             )
-             VALUES (?, ?, ?, ?, ?)
-             """,
-             (
-                 user.telegram_id,
-                 user.username,
-                 user.first_name,
-                 int(is_admin),
-                 api_key,
-                 created_at,
-             ),
-         )
+            """
+            INSERT INTO users
+            (
+                telegram_id,
+                username,
+                first_name,
+                is_admin,
+                api_key,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user.telegram_id,
+                user.username,
+                user.first_name,
+                int(is_admin),
+                api_key,
+                int(datetime.now().timestamp()),
+            ),
+        )
  
          return UsersRepository.get_by_telegram(
              user.telegram_id

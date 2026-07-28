@@ -4,13 +4,15 @@ from app.database.database import db
 def create_tables():
 
     db.execute("""
-    CREATE TABLE IF NOT EXISTS users (
+    CREATE TABLE IF NOT EXISTS users
+    (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        telegram_id INTEGER UNIQUE NOT NULL,
+        telegram_id INTEGER UNIQUE,
         username TEXT,
         first_name TEXT,
+        is_admin INTEGER DEFAULT 0,
         api_key TEXT,
-        is_admin INTEGER DEFAULT 0
+        created_at INTEGER DEFAULT (strftime('%s','now'))
     )
     """)
 
@@ -129,3 +131,13 @@ def create_tables():
         )
     )
         """)
+
+    try:
+        db.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN created_at INTEGER
+            """
+        )
+    except Exception:
+        pass
