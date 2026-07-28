@@ -49,42 +49,44 @@ class UsersRepository:
 
     @staticmethod
     def create(
-        user: User,
-    ) -> User:
-
-        import secrets
-
-        api_key = secrets.token_hex(32)
-
-        is_admin = (
-            user.telegram_id == settings.admin_id
-        )
-
-        db.execute(
-            """
-            INSERT INTO users
-            (
-                telegram_id,
-                username,
-                first_name,
-                is_admin,
-                api_key
-            )
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (
-                user.telegram_id,
-                user.username,
-                user.first_name,
-                int(is_admin),
-                api_key,
-            ),
-        )
-
-        return UsersRepository.get_by_telegram(
-            user.telegram_id
-        )
-
+         user: User,
+     ) -> User:
+ 
+         import secrets
+ 
+         api_key = secrets.token_hex(32)
+ 
+         is_admin = (
+             user.telegram_id == settings.admin_id
+         )
+ 
+         db.execute(
+             """
+             INSERT INTO users
+             (
+                 telegram_id,
+                 username,
+                 first_name,
+                 is_admin,
+                 api_key
+                 created_at
+             )
+             VALUES (?, ?, ?, ?, ?)
+             """,
+             (
+                 user.telegram_id,
+                 user.username,
+                 user.first_name,
+                 int(is_admin),
+                 api_key,
+                 created_at,
+             ),
+         )
+ 
+         return UsersRepository.get_by_telegram(
+             user.telegram_id
+         )
+ 
 
     @staticmethod
     def update_profile(
