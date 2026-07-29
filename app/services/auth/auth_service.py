@@ -12,14 +12,14 @@ class AuthService:
         api_key: str,
     ) -> str | None:
 
-        if api_key != settings.backend_api_key:
-            return None
-
         user = users_repo.get_by_telegram(
             telegram_id
         )
 
         if user is None:
+            return None
+
+        if user.api_key != api_key:
             return None
 
         return jwt_service.create_token(
