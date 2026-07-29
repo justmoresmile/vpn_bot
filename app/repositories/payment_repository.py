@@ -644,5 +644,35 @@ class PaymentRepository:
 
 
 
+
+    
+    @staticmethod
+    def get_by_user_id(
+        user_id: int,
+    ) -> list[Payment]:
+
+        rows = db.fetchall(
+            """
+            SELECT *
+
+            FROM payments
+
+            WHERE user_id = ?
+
+            ORDER BY created_at DESC
+
+            """,
+            (
+                user_id,
+            ),
+        )
+
+
+        return [
+            PaymentRepository._to_entity(row)
+            for row in rows
+        ]
+
+
     
 payment_repo = PaymentRepository()

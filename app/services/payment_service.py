@@ -370,4 +370,14 @@ class PaymentService:
             subscription_id=subscription_id,
         )
 
+
+    def get_user_payments(
+        self,
+        user_id: int,
+    ):
+
+        return payment_repo.get_by_user_id(
+            user_id
+        )
+
 payment_service = PaymentService()

@@ -27,6 +27,8 @@ from app.services.user_service import (
     user_service,
 )
 
+from app.services.payment_service import payment_service
+from app.api.schemas.payment import PaymentResponse
 
 router = APIRouter(
     prefix="/user",
@@ -101,5 +103,47 @@ async def sync_user(
         id=user.id,
     )
 
+@router.get(
+"/me/payments",
+    response_model=list[PaymentResponse],
+)
+async def get_my_payments(
+    current_user = Depends(
+        get_current_user
+    ),
+):
 
+    payments = (
+        payment_service
+        .get_user_payments(
+            current_user.id
+        )
+    )
+
+
+    return [
+        PaymentResponse(
+
+            id=payment.id,
+
+            amount=payment.amount,
+
+            currency=payment.currency,
+
+            protocol=payment.protocol,
+
+            subscription_days=(
+                payment.subscription_days
+            ),
+
+            status=payment.status,
+
+            created_at=payment.created_at,
+
+            paid_at=payment.paid_at,
+
+        )
+
+        for payment in payments
+    ]
 
