@@ -5,6 +5,7 @@ from app.domain.payment import Payment
 from app.domain.enums.payment_status import PaymentStatus
 
 
+
 class PaymentRepository:
 
 
@@ -321,20 +322,29 @@ class PaymentRepository:
         payment_id: int,
     ):
 
+        now = int(
+            datetime.now().timestamp()
+        )
+
         db.execute(
             """
             UPDATE payments
 
             SET
-                status = 'paid',
-                paid_at = ?
 
-            WHERE
-                id = ?
-                AND status = 'pending'
+                status = 'paid',
+
+                paid_at = ?,
+
+                updated_at = ?
+
+            WHERE id = ?
+
             """,
+
             (
-                int(datetime.now().timestamp()),
+                now,
+                now,
                 payment_id,
             ),
         )
@@ -420,7 +430,6 @@ class PaymentRepository:
         hours: int = 24,
     ):
 
-
         limit = int(
             (
                 datetime.now()
@@ -432,13 +441,20 @@ class PaymentRepository:
         )
 
 
+        now = int(
+            datetime.now().timestamp()
+        )
+
+
         db.execute(
             """
             UPDATE payments
 
             SET
 
-                status = 'expired'
+                status = 'expired',
+
+                updated_at = ?
 
             WHERE status = 'pending'
 
@@ -447,6 +463,7 @@ class PaymentRepository:
             """,
 
             (
+                now,
                 limit,
             ),
         )

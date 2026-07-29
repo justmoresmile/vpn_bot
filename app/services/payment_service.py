@@ -91,6 +91,7 @@ class PaymentService:
             status=PaymentStatus.PENDING,
             created_at=datetime.now(),
             paid_at=None,
+            updated_at=datetime.now(),
         )
 
         return payment_repo.create(
