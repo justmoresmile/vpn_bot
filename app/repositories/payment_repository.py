@@ -10,7 +10,7 @@ class PaymentRepository:
 
 
     @staticmethod
-    def _to_entity(row) -> Payment:
+    def _to_entity(row):
 
         return Payment(
 
@@ -18,25 +18,23 @@ class PaymentRepository:
 
             user_id=row["user_id"],
 
+            subscription_id=row["subscription_id"],
+
             protocol=row["protocol"],
 
             subscription_days=row["subscription_days"],
 
-            subscription_id=row["subscription_id"],
-
             amount=row["amount"],
 
             currency=row["currency"],
+
+            status=row["status"],
 
             provider=row["provider"],
 
             provider_payment_id=row["provider_payment_id"],
 
             confirmation_url=row["confirmation_url"],
-
-            status=PaymentStatus(
-                row["status"]
-            ),
 
             created_at=datetime.fromtimestamp(
                 row["created_at"]
@@ -49,7 +47,16 @@ class PaymentRepository:
                 if row["paid_at"]
                 else None
             ),
-        )
+
+            updated_at=(
+                datetime.fromtimestamp(
+                    row["updated_at"]
+                )
+                if "updated_at" in row.keys()
+                and row["updated_at"]
+                else None
+            ),
+        )   
 
 
 
@@ -452,7 +459,7 @@ class PaymentRepository:
 
             SET
 
-                status = 'expired',
+                status = 'expired', 
 
                 updated_at = ?
 

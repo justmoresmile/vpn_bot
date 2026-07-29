@@ -9,15 +9,17 @@ class Payment:
 
     user_id: int
 
+    subscription_id: int | None
+
     protocol: str
 
     subscription_days: int
 
-    subscription_id: int | None
-
     amount: float
 
     currency: str
+
+    status: str
 
     provider: str
 
@@ -25,8 +27,8 @@ class Payment:
 
     confirmation_url: str | None
 
-    status: str
-
     created_at: datetime
 
     paid_at: datetime | None
+
+    updated_at: datetime | None
