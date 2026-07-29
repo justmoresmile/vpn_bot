@@ -248,6 +248,45 @@ class PaymentRepository:
         ]
 
 
+    @staticmethod
+    def get_pending_by_user_tariff(
+        user_id: int,
+        protocol: str,
+        subscription_days: int,
+        subscription_id: int | None = None,
+    ) -> Payment | None:
+
+        row = db.fetchone(
+            """
+            SELECT *
+            FROM payments
+            WHERE
+                user_id = ?
+                AND protocol = ?
+                AND subscription_days = ?
+                AND status = ?
+                AND (
+                    (subscription_id IS NULL AND ? IS NULL)
+                    OR subscription_id = ?
+                )
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (
+                user_id,
+                protocol,
+                subscription_days,
+                PaymentStatus.PENDING.value,
+                subscription_id,
+                subscription_id,
+            ),
+        )
+
+        return (
+            PaymentRepository._to_entity(row)
+            if row
+            else None
+        )
 
     @staticmethod
     def update_status(

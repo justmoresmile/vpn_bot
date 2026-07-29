@@ -49,81 +49,49 @@ class PaymentService:
         subscription_id: int | None = None,
     ) -> Payment:
 
-
         amount = self.calculate_price(
             days
         )
 
-
-        #
-        # Проверяем есть ли уже активный платеж
-        #
-        existing_payment = (
-            payment_repo.get_pending_by_user(
-                user_id=user_id,
-                subscription_id=subscription_id,
-                days=days,
-            )
+        existing = payment_repo.get_pending_by_user_tariff(
+            user_id=user_id,
+            protocol=protocol,
+            subscription_days=days,
+            subscription_id=subscription_id,
         )
 
-
-        if existing_payment:
+        if existing:
 
             logger.info(
-                f"Existing pending payment found "
-                f"id={existing_payment.id}"
+                f"Reuse pending payment {existing.id}"
             )
 
-            return existing_payment
+            return existing
 
-
-
-        #
-        # Создаем новый платеж YooKassa
-        #
         payment = yookassa_client.create_payment(
             amount=amount,
-            description=(
-                f"VPN {protocol.upper()} {days} дней"
-            ),
+            description=f"VPN {protocol.upper()} {days} дней",
         )
 
-
-
         entity = Payment(
-
             id=None,
-
             user_id=user_id,
-
             subscription_id=subscription_id,
-
             protocol=protocol,
-
             subscription_days=days,
-
             amount=amount,
-
             currency="RUB",
-
             provider="yookassa",
-
             provider_payment_id=payment.id,
-
             confirmation_url=(
                 payment.confirmation.confirmation_url
                 if payment.confirmation
                 else None
             ),
-
             status=PaymentStatus.PENDING,
-
             created_at=datetime.now(),
-
             paid_at=None,
-
         )
-
 
         return payment_repo.create(
             entity
