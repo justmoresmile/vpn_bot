@@ -29,10 +29,10 @@ async def my_vpn(
             message.from_user.id
         )
 
-    except Exception:
+    except Exception as e:
 
         await message.answer(
-            "⚠️ Сначала нажмите /start"
+            f"❌ Ошибка: {e}"
         )
 
         return

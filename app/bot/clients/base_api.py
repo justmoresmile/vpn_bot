@@ -11,6 +11,7 @@ class BaseAPI:
 
         self.base_url = settings.backend_api_url.rstrip("/")
         self.api_key = settings.backend_api_key
+        
 
         self._access_token: str | None = None
         self._token_expire: datetime | None = None
@@ -39,7 +40,8 @@ class BaseAPI:
         async with httpx.AsyncClient(
             timeout=10,
         ) as client:
-
+            print("DEBUG TELEGRAM ID:", telegram_id)
+            print("DEBUG SEND KEY:", self.api_key)
             response = await client.post(
                 f"{self.base_url}/api/v1/auth/token",
                 json={
