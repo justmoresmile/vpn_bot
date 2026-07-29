@@ -19,8 +19,10 @@ class AuthService:
         if user is None:
             return None
 
+
         if user.api_key != api_key:
             return None
+
 
         return jwt_service.create_token(
             user.id
