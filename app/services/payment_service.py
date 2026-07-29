@@ -181,7 +181,10 @@ class PaymentService:
         payment_repo.mark_paid(
             payment.id
         )
-
+        payment_repo.cancel_other_pending(
+            user_id=payment.user_id,
+            except_payment_id=payment.id,
+        )
 
         payment = self.get_payment(
             payment.id

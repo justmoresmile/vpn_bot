@@ -321,32 +321,49 @@ class PaymentRepository:
         payment_id: int,
     ):
 
+        db.execute(
+            """
+            UPDATE payments
+
+            SET
+                status = 'paid',
+                paid_at = ?
+
+            WHERE
+                id = ?
+                AND status = 'pending'
+            """,
+            (
+                int(datetime.now().timestamp()),
+                payment_id,
+            ),
+        )
+
+    @staticmethod
+    def cancel_other_pending(
+        user_id: int,
+        except_payment_id: int,
+    ):
 
         db.execute(
             """
             UPDATE payments
 
             SET
+                status = 'canceled'
 
-                status = 'paid',
+            WHERE
+                user_id = ?
 
-                paid_at = ?
+                AND status = 'pending'
 
-            WHERE id = ?
-
+                AND id != ?
             """,
-
             (
-
-                int(
-                    datetime.now().timestamp()
-                ),
-
-                payment_id,
+                user_id,
+                except_payment_id,
             ),
         )
-
-
 
     @staticmethod
     def mark_failed(
