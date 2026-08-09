@@ -11,18 +11,19 @@ class BaseAPI:
 
         self.base_url = settings.backend_api_url.rstrip("/")
         self.api_key = settings.backend_api_key
-        
 
-        self._access_token: str | None = None
-        self._token_expire: datetime | None = None
+        self._tokens: dict[
+            int,
+            tuple[str, datetime],
+        ] = {}
 
     async def login(
         self,
         telegram_id: int,
-    ):
+    ) -> str:
 
         return await self._token(
-            telegram_id
+            telegram_id,
         )
 
     async def _token(
@@ -30,23 +31,33 @@ class BaseAPI:
         telegram_id: int,
     ) -> str:
 
-        if (
-            self._access_token
-            and self._token_expire
-            and datetime.utcnow() < self._token_expire
-        ):
-            return self._access_token
+        cached = self._tokens.get(
+            telegram_id,
+        )
+
+        if cached:
+
+            token, token_expire = cached
+
+            if datetime.utcnow() < token_expire:
+                return token
+
+            self._tokens.pop(
+                telegram_id,
+                None,
+            )
 
         async with httpx.AsyncClient(
             timeout=10,
         ) as client:
-            print("DEBUG TELEGRAM ID:", telegram_id)
-            print("DEBUG SEND KEY:", self.api_key)
+
             response = await client.post(
-                f"{self.base_url}/api/v1/auth/token",
+                f"{self.base_url}/api/v1/auth/internal/token",
                 json={
                     "telegram_id": telegram_id,
-                    "api_key": self.api_key,
+                },
+                headers={
+                    "X-API-Key": self.api_key,
                 },
             )
 
@@ -54,14 +65,19 @@ class BaseAPI:
 
             data = response.json()
 
-            self._access_token = data["access_token"]
+            token = data["access_token"]
 
-            self._token_expire = (
+            token_expire = (
                 datetime.utcnow()
                 + timedelta(minutes=30)
             )
 
-            return self._access_token
+            self._tokens[telegram_id] = (
+                token,
+                token_expire,
+            )
+
+            return token
 
     async def _headers(
         self,
@@ -69,7 +85,7 @@ class BaseAPI:
     ) -> dict:
 
         token = await self._token(
-            telegram_id
+            telegram_id,
         )
 
         return {
@@ -91,7 +107,7 @@ class BaseAPI:
                 f"{self.base_url}{url}",
                 params=params,
                 headers=await self._headers(
-                    telegram_id
+                    telegram_id,
                 ),
             )
 
@@ -117,14 +133,13 @@ class BaseAPI:
                 json=json,
                 params=params,
                 headers=await self._headers(
-                    telegram_id
+                    telegram_id,
                 ),
             )
 
             response.raise_for_status()
 
             return response
-
 
     async def _delete(
         self,
@@ -142,7 +157,7 @@ class BaseAPI:
                 f"{self.base_url}{url}",
                 params=params,
                 headers=await self._headers(
-                    telegram_id
+                    telegram_id,
                 ),
             )
 

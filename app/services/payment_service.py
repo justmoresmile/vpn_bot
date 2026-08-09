@@ -129,59 +129,48 @@ class PaymentService:
         provider_payment_id: str,
     ) -> Payment | None:
 
-
         logger.info(
             f"Processing payment {provider_payment_id}"
         )
-
 
         payment = self.get_by_provider_id(
             provider_payment_id
         )
 
-
         if payment is None:
-
             logger.warning(
                 f"Payment not found {provider_payment_id}"
             )
-
             return None
 
-
-
         if payment.status == PaymentStatus.PAID.value:
-
             logger.info(
                 f"Payment already processed {payment.id}"
             )
-
             return payment
-
-
 
         if payment.status in (
             PaymentStatus.FAILED.value,
             PaymentStatus.CANCELED.value,
             PaymentStatus.EXPIRED.value,
         ):
-
             logger.warning(
                 f"Payment has invalid status: {payment.status}"
             )
-
             return payment
 
-
+        # ВАЖНО:
+        # запоминаем тип операции ДО изменения payment.subscription_id
+        is_renewal = payment.subscription_id is not None
 
         logger.info(
             f"Mark payment paid {payment.id}"
         )
 
-
         payment_repo.mark_paid(
             payment.id
         )
+
         payment_repo.cancel_other_pending(
             user_id=payment.user_id,
             except_payment_id=payment.id,
@@ -191,90 +180,93 @@ class PaymentService:
             payment.id
         )
 
+        if payment is None:
+            logger.error(
+                f"Payment disappeared after mark_paid: {provider_payment_id}"
+            )
+            return None
 
+        # =========================================================
+        # ПРОДЛЕНИЕ СУЩЕСТВУЮЩЕЙ ПОДПИСКИ
+        # =========================================================
 
-        
-
-
-        if payment.subscription_id is not None:
+        if is_renewal:
 
             logger.info(
                 f"Extending subscription {payment.subscription_id}"
             )
 
-
             old_subscription = (
-                subscription_service
-                .get_by_id(
+                subscription_service.get_by_id(
                     payment.subscription_id
                 )
             )
-
 
             if old_subscription is None:
                 logger.error(
                     f"Subscription not found {payment.subscription_id}"
                 )
-
                 return payment
 
-
-            old_expires_at = (
-                old_subscription.expires_at
-            )
-
+            old_expires_at = old_subscription.expires_at
 
             subscription = await vpn_service.extend(
                 payment.subscription_id,
                 payment.subscription_days,
             )
 
+            logger.info(
+                f"Subscription extended: "
+                f"id={subscription.id}"
+            )
 
-            
-
-
-            
+        # =========================================================
+        # НОВАЯ ПОДПИСКА
+        # =========================================================
 
         else:
-
 
             logger.info(
                 "Creating new VPN subscription..."
             )
 
-
             subscription = await vpn_service.purchase(
-
                 user_id=payment.user_id,
-
                 protocol=payment.protocol,
-
                 days=payment.subscription_days,
-
             )
 
+            # Привязываем созданную подписку к платежу
+            payment_repo.set_subscription(
+                payment.id,
+                subscription.id,
+            )
 
+            logger.info(
+                f"New subscription linked to payment: "
+                f"payment={payment.id} "
+                f"subscription={subscription.id}"
+            )
 
         logger.info(
             f"Subscription ready {subscription.id}"
         )
 
-
+        # =========================================================
+        # TELEGRAM
+        # =========================================================
 
         user = users_repo.get_by_id(
             payment.user_id
         )
 
-
-        logger.info(
-            "Sending Telegram notification..."
-        )
-
-
         if user:
 
-            if payment.subscription_id is not None:
+            if is_renewal:
 
+                logger.info(
+                    "Sending subscription renewal notification..."
+                )
 
                 await telegram_service.send_renew_notification(
                     user.telegram_id,
@@ -290,20 +282,20 @@ class PaymentService:
                     ),
                 )
 
-
             else:
 
+                logger.info(
+                    "Sending new subscription..."
+                )
 
                 await telegram_service.send_subscription(
                     user.telegram_id,
                     subscription,
                 )
 
-
         logger.success(
             "Telegram message sent successfully"
         )
-
 
         return payment
 

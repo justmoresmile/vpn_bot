@@ -1,3 +1,6 @@
+import os
+import re
+
 from aiogram.enums import ParseMode
 
 from aiogram.types import (
@@ -20,12 +23,33 @@ from app.ui.screens.payment import (
 from app.bot.keyboards.subscription_menu import (
     subscription_expire_menu,
 )
+
 from app.ui.screens.subscription import (
     subscription_renew_success_screen,
 )
 
-import re
 
+# ============================================================
+# PUBLIC SUBSCRIPTION URL
+# ============================================================
+
+# Для теста можно указать IP сервера:
+#
+# PUBLIC_SUBSCRIPTION_BASE_URL=http://195.82.146.104:8000
+#
+# В будущем:
+#
+# PUBLIC_SUBSCRIPTION_BASE_URL=https://s.justvpn.com
+#
+PUBLIC_SUBSCRIPTION_BASE_URL = os.getenv(
+    "PUBLIC_SUBSCRIPTION_BASE_URL",
+    "http://195.82.146.104:8000",
+).rstrip("/")
+
+
+# ============================================================
+# HELPERS
+# ============================================================
 
 
 def safe_filename(value: str) -> str:
@@ -37,10 +61,26 @@ def safe_filename(value: str) -> str:
     )
 
 
+def build_subscription_url(
+    subscription_token: str,
+) -> str:
+
+    return (
+        f"{PUBLIC_SUBSCRIPTION_BASE_URL}"
+        f"/{subscription_token}"
+    )
+
+
+# ============================================================
+# TELEGRAM SERVICE
+# ============================================================
+
 
 class TelegramService:
 
-
+    # ========================================================
+    # SEND SUBSCRIPTION
+    # ========================================================
 
     async def send_subscription(
         self,
@@ -48,14 +88,16 @@ class TelegramService:
         subscription,
     ) -> None:
 
-
         logger.info(
-            f"send_subscription() called for user {user_id}"
+            "send_subscription() called for user %s",
+            user_id,
         )
-
 
         try:
 
+            # ------------------------------------------------
+            # SUBSCRIPTION ID
+            # ------------------------------------------------
 
             subscription_id = (
                 subscription["id"]
@@ -63,13 +105,21 @@ class TelegramService:
                 else subscription.id
             )
 
+            # ------------------------------------------------
+            # PROTOCOL
+            # ------------------------------------------------
 
-            data = await api_client.download_file(
-                telegram_id=user_id,
-                subscription_id=subscription_id,
+            protocol = (
+                subscription["protocol"]
+                if isinstance(subscription, dict)
+                else subscription.protocol
             )
 
+            protocol = protocol.lower().strip()
 
+            # ------------------------------------------------
+            # CLIENT EMAIL
+            # ------------------------------------------------
 
             client_email = (
                 subscription["client_email"]
@@ -77,20 +127,9 @@ class TelegramService:
                 else subscription.client_email
             )
 
-
-
-            filename = (
-                f"{safe_filename(client_email)}.conf"
-            )
-
-
-
-            file = BufferedInputFile(
-                data,
-                filename=filename,
-            )
-
-
+            # ------------------------------------------------
+            # KEYBOARD
+            # ------------------------------------------------
 
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
@@ -103,25 +142,151 @@ class TelegramService:
                 ]
             )
 
+            # =================================================
+            # VLESS
+            # =================================================
 
+            if protocol == "vless":
 
-            await bot.send_message(
-                chat_id=user_id,
-                text=payment_success_screen(),
-                parse_mode=ParseMode.HTML,
+                logger.info(
+                    "Preparing VLESS subscription link: "
+                    "user=%s subscription=%s",
+                    user_id,
+                    subscription_id,
+                )
+
+                # ---------------------------------------------
+                # GET TOKEN
+                # ---------------------------------------------
+
+                subscription_token = (
+                    subscription["subscription_token"]
+                    if isinstance(subscription, dict)
+                    else subscription.subscription_token
+                )
+
+                if not subscription_token:
+
+                    raise RuntimeError(
+                        "VLESS subscription token not found"
+                    )
+
+                # ---------------------------------------------
+                # BUILD SHORT URL
+                # ---------------------------------------------
+
+                subscription_url = build_subscription_url(
+                    subscription_token
+                )
+
+                logger.info(
+                    "Generated public subscription URL: "
+                    "user=%s subscription=%s url=%s",
+                    user_id,
+                    subscription_id,
+                    subscription_url,
+                )
+
+                # ---------------------------------------------
+                # SEND MESSAGE
+                # ---------------------------------------------
+
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=(
+                        "✅ <b>Оплата успешно прошла!</b>\n\n"
+                        "Ваш VPN создан.\n\n"
+                        "🔗 <b>Ваша подписка:</b>\n\n"
+                        f"<code>{subscription_url}</code>\n\n"
+                        "👆 Нажмите на ссылку, "
+                        "чтобы открыть подписку."
+                    ),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=keyboard,
+                )
+
+                logger.success(
+                    "VLESS subscription URL sent successfully: "
+                    "user=%s subscription=%s",
+                    user_id,
+                    subscription_id,
+                )
+
+                return
+
+            # =================================================
+            # WIREGUARD
+            # =================================================
+
+            if protocol == "wireguard":
+
+                logger.info(
+                    "Sending WireGuard configuration: "
+                    "user=%s subscription=%s",
+                    user_id,
+                    subscription_id,
+                )
+
+                # ---------------------------------------------
+                # DOWNLOAD CONFIG
+                # ---------------------------------------------
+
+                data = await api_client.download_file(
+                    telegram_id=user_id,
+                    subscription_id=subscription_id,
+                )
+
+                # ---------------------------------------------
+                # FILE NAME
+                # ---------------------------------------------
+
+                filename = (
+                    f"{safe_filename(client_email)}.conf"
+                )
+
+                file = BufferedInputFile(
+                    data,
+                    filename=filename,
+                )
+
+                # ---------------------------------------------
+                # SUCCESS MESSAGE
+                # ---------------------------------------------
+
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=payment_success_screen(),
+                    parse_mode=ParseMode.HTML,
+                )
+
+                # ---------------------------------------------
+                # SEND FILE
+                # ---------------------------------------------
+
+                await bot.send_document(
+                    chat_id=user_id,
+                    document=file,
+                    reply_markup=keyboard,
+                )
+
+                logger.success(
+                    "WireGuard configuration sent successfully: "
+                    "user=%s subscription=%s",
+                    user_id,
+                    subscription_id,
+                )
+
+                return
+
+            # =================================================
+            # UNKNOWN PROTOCOL
+            # =================================================
+
+            raise ValueError(
+                f"Unsupported subscription protocol: {protocol}"
             )
-
-
-            await bot.send_document(
-                chat_id=user_id,
-                document=file,
-                reply_markup=keyboard,
-            )
-
-
 
         except Exception:
-
 
             logger.exception(
                 "Не удалось отправить VPN пользователю %s",
@@ -130,8 +295,9 @@ class TelegramService:
 
             raise
 
-
-
+    # ========================================================
+    # RENEW NOTIFICATION
+    # ========================================================
 
     async def send_renew_notification(
         self,
@@ -139,8 +305,6 @@ class TelegramService:
         old_date: str,
         new_date: str,
     ) -> None:
-
-
 
         await bot.send_message(
             chat_id=user_id,
@@ -151,7 +315,9 @@ class TelegramService:
             parse_mode=ParseMode.HTML,
         )
 
-
+    # ========================================================
+    # ADMIN RENEW NOTIFICATION
+    # ========================================================
 
     async def send_admin_renew_notification(
         self,
@@ -169,6 +335,10 @@ class TelegramService:
             parse_mode=ParseMode.HTML,
         )
 
+    # ========================================================
+    # EXPIRE WARNING
+    # ========================================================
+
     async def send_expire_warning(
         self,
         user_id: int,
@@ -177,16 +347,11 @@ class TelegramService:
         subscription,
     ) -> None:
 
-
-
         keyboard = subscription_expire_menu(
             subscription
         )
 
-
-
         if days == 7:
-
 
             text = (
                 "⚠️ <b>Напоминание JustVPN</b>\n\n"
@@ -198,10 +363,7 @@ class TelegramService:
                 "чтобы VPN работал без перерывов."
             )
 
-
-
         elif days == 3:
-
 
             text = (
                 "⚠️ <b>Напоминание JustVPN</b>\n\n"
@@ -212,10 +374,7 @@ class TelegramService:
                 "❤️ Не забудьте продлить подписку."
             )
 
-
-
         else:
-
 
             text = (
                 "🚨 <b>Последний день JustVPN</b>\n\n"
@@ -226,8 +385,6 @@ class TelegramService:
                 "❤️ Продлите подписку сейчас."
             )
 
-
-
         await bot.send_message(
             chat_id=user_id,
             text=text,
@@ -235,17 +392,15 @@ class TelegramService:
             reply_markup=keyboard,
         )
 
-
-
-
+    # ========================================================
+    # GENERIC MESSAGE
+    # ========================================================
 
     async def send_message(
         self,
         user_id: int,
         text: str,
     ):
-
-
 
         await bot.send_message(
             chat_id=user_id,
@@ -254,7 +409,8 @@ class TelegramService:
         )
 
 
-
-
+# ============================================================
+# SINGLETON
+# ============================================================
 
 telegram_service = TelegramService()

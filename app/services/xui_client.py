@@ -25,53 +25,73 @@ class XUIClient:
     Отвечает только за API панели.
     """
 
+
+
     def __init__(
         self,
-        server: Server,
+        server,
     ):
 
         self.server = server
 
+        self.base_url = server.api_url
+
         self.client = httpx.AsyncClient(
-            base_url=server.api_url,
+            base_url=self.base_url,
             headers={
-                "Authorization": (
-                    f"Bearer {server.api_token}"
-                ),
-                "Accept": "application/json",
-                "Content-Type": "application/json",
+                "Authorization": f"Bearer {server.api_token}"
             },
-            verify=False,
             timeout=30,
+            verify=False,
         )
+
+        logger.info(
+            f"BASE URL: {self.base_url}"
+        )
+
+        self._inbounds_cache = None
 
     async def close(self):
 
         await self.client.aclose()
 
+    async def clear_cache(self):
+
+        self._inbounds_cache = None
 
 
     async def _request(
         self,
         method: str,
-        url: str,
+        endpoint: str,
         **kwargs,
     ) -> dict[str, Any]:
 
+        if endpoint.startswith("/"):
+            endpoint = endpoint[1:]
+
         logger.info(
-            f"XUI request: {method} {url}"
+            f"XUI request: {method} {endpoint}"
+        )
+
+        logger.info(
+            f"FULL URL: {self.client.base_url.join(endpoint)}"
         )
 
         try:
 
             response = await self.client.request(
                 method,
-                url,
+                endpoint,
                 **kwargs,
             )
 
             logger.info(
-                f"XUI response status: {response.status_code}"
+                f"STATUS: {response.status_code}"
+            )
+
+            logger.info(
+                f"BODY: {response.text[:500]}"
             )
 
             response.raise_for_status()
@@ -90,9 +110,21 @@ class XUIClient:
 
         try:
 
+            if not response.text.strip():
+
+                return {
+                    "success": True
+                }
+
+
             data = response.json()
 
+
         except Exception:
+
+            logger.exception(
+                "XUI invalid JSON response"
+            )
 
             raise XUIResponseError(
                 "Invalid JSON response"
@@ -114,9 +146,7 @@ class XUIClient:
 
         return data
 
-
-
-    # ==================================================
+      # ==================================================
     # INBOUNDS
     # ==================================================
 
@@ -177,19 +207,26 @@ class XUIClient:
         return None
 
     async def get_inbound_by_id(
-        self,
-        inbound_id: int,
-    ) -> Inbound | None:
-
-        data = await self._request(
-            "GET",
-            "/panel/api/inbounds/list",
-        )
-
-        for item in data.get("obj", []):
-
-            if item["id"] == inbound_id:
-
+         self,
+         inbound_id: int,
+     ) -> Inbound | None:
+ 
+ 
+         if self._inbounds_cache is None:
+ 
+             self._inbounds_cache = await self._request(
+                 "GET",
+                 "/panel/api/inbounds/list",
+             )
+ 
+ 
+         data = self._inbounds_cache
+ 
+ 
+         for item in data.get("obj", []):
+ 
+             if item["id"] == inbound_id:
+ 
                 return Inbound(
                     id=item["id"],
                     remark=item.get("remark", ""),
@@ -197,9 +234,10 @@ class XUIClient:
                     port=item.get("port", 0),
                     raw=item,
                 )
-
-        return None
-
+ 
+ 
+         return None
+ 
     async def get_default_inbound(
             self,
             protocol: str,
@@ -220,14 +258,20 @@ class XUIClient:
                 inbound_id
             )
 
+
+
     async def refresh_inbound(
         self,
         inbound: Inbound,
     ) -> Inbound | None:
 
+        self._inbounds_cache = None
+
         return await self.get_inbound_by_id(
             inbound.id
-    )
+        )
+
+
 
     # ==================================================
     # CLIENTS
@@ -312,7 +356,6 @@ class XUIClient:
         client: dict,
     ):
 
-
         await self._request(
             "POST",
             "/panel/api/clients/add",
@@ -324,11 +367,11 @@ class XUIClient:
             },
         )
 
+        self._inbounds_cache = None
 
         logger.info(
             f"Client created in inbound {inbound_id}"
         )
-
 
 
     async def delete_client(
@@ -349,6 +392,7 @@ class XUIClient:
             },
         )
 
+        self._inbounds_cache = None
 
         logger.info(
             f"Client deleted {client_uuid}"
@@ -423,6 +467,8 @@ class XUIClient:
             json=payload,
         )
 
+        self._inbounds_cache = None
+
         logger.info(
             f"Client updated ({email or client_uuid})"
         )
@@ -487,8 +533,12 @@ class XUIClient:
         data = await self._request(
             "GET",
             f"/panel/api/clients/subLinks/{sub_id}",
-            
-            
+        )
+
+        logger.info(
+            "SUBSCRIPTION LINKS: sub_id={} obj={}",
+            sub_id,
+            data.get("obj"),
         )
 
         return data.get(

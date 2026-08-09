@@ -245,67 +245,34 @@ class AdminAPI(BaseAPI):
 
         return response.json()
 
-    async def get_active_users(
+
+    async def get_admin_subscription(
         self,
         telegram_id: int,
+        subscription_id: int,
     ):
 
         response = await self._get(
             telegram_id,
-            "/api/v1/admin/users/filter",
-            params={
-                "filter_type": "active",
-            },
+            f"/api/v1/admin/subscriptions/{subscription_id}",
         )
 
         return response.json()
 
 
 
-    async def get_users_without_subscription(
+    async def create_admin_subscription(
         self,
         telegram_id: int,
+        user_id: int,
+        days: int = 30,
     ):
 
-        response = await self._get(
+        response = await self._post(
             telegram_id,
-            "/api/v1/admin/users/filter",
+            f"/api/v1/admin/users/{user_id}/subscription",
             params={
-                "filter_type": "no_subscription",
-            },
-        )
-
-        return response.json()
-
-
-
-    async def get_expired_users(
-        self,
-        telegram_id: int,
-    ):
-
-        response = await self._get(
-            telegram_id,
-            "/api/v1/admin/users/filter",
-            params={
-                "filter_type": "expired",
-            },
-        )
-
-        return response.json()
-
-
-
-    async def get_admins(
-        self,
-        telegram_id: int,
-    ):
-
-        response = await self._get(
-            telegram_id,
-            "/api/v1/admin/users/filter",
-            params={
-                "filter_type": "admins",
+                "days": days,
             },
         )
 

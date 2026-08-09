@@ -24,7 +24,7 @@ class SubscriptionAPI(BaseAPI):
 
         response = await self._get(
             telegram_id,
-            f"/api/v1/subscription/{subscription_id}/config",
+            f"/api/v1/admin/subscriptions/{subscription_id}/config",
         )
 
         return response.json()
@@ -37,7 +37,7 @@ class SubscriptionAPI(BaseAPI):
 
         response = await self._get(
             telegram_id,
-            f"/api/v1/subscription/{subscription_id}/file",
+            f"/api/v1/admin/subscriptions/{subscription_id}/file",
         )
 
         return response.content
@@ -51,7 +51,7 @@ class SubscriptionAPI(BaseAPI):
 
         response = await self._post(
             telegram_id,
-            f"/api/v1/subscription/{subscription_id}/renew",
+            f"/api/v1/admin/subscriptions/{subscription_id}/renew",
             params={
                 "days": days,
             },

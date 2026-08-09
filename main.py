@@ -1,22 +1,25 @@
-import app.bootstrap
 import asyncio
+import os
+
 import uvicorn
+
+import app.bootstrap
+
 from app.api.server import app
 from app.bot.app import bot, dp
 from app.database.schema import create_tables
-from app.logger import logger
-from app.services.sync_service import sync_service
-from app.tasks.scheduler import scheduler
 from app.database.seed import seed_database
+from app.logger import logger
+from app.services.vpn_service import vpn_service
+from app.tasks.subscription_task import subscription_task
 
 
 async def run_bot():
-    import os
-
     print("=" * 50)
     print("BOT STARTED")
     print(os.getpid())
     print("=" * 50)
+
     await dp.start_polling(bot)
 
 
@@ -38,19 +41,20 @@ async def startup():
 
     create_tables()
     seed_database()
+
     logger.success("База данных успешно создана")
 
-    logger.info("Синхронизация подписок...")
-
-    await sync_service.sync()
-
-    logger.success("Синхронизация завершена")
-
     asyncio.create_task(
-    scheduler.run()
+        subscription_task()
     )
 
-    logger.success("SubscriptionChecker запущен")
+    logger.success(
+        "Background task started"
+    )
+
+    logger.success(
+        "SubscriptionChecker запущен"
+    )
 
 
 async def main():
@@ -66,4 +70,10 @@ if __name__ == "__main__":
     asyncio.run(main())
 
 
-   
+@app.on_event("shutdown")
+async def shutdown_event():
+    await vpn_service.close()
+
+    logger.info(
+        "Application shutdown complete"
+    )

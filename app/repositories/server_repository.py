@@ -174,5 +174,75 @@ class ServerRepository:
         return ServerRepository._to_entity(row)
 
 
+    @staticmethod
+    def delete(
+        server_id: int,
+    ):
+
+        db.execute(
+            """
+            DELETE FROM servers
+            WHERE id = ?
+            """,
+            (server_id,),
+        )
+
+
+    @staticmethod
+    def enable(
+        server_id: int,
+    ):
+
+        db.execute(
+            """
+            UPDATE servers
+            SET enabled = 1
+            WHERE id = ?
+            """,
+            (server_id,),
+        )
+
+
+    @staticmethod
+    def disable(
+        server_id: int,
+    ):
+
+        db.execute(
+            """
+            UPDATE servers
+            SET enabled = 0
+            WHERE id = ?
+            """,
+            (server_id,),
+        )
+
+
+    @staticmethod
+    def count() -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM servers
+            """
+        )
+
+        return row["total"]
+
+    @staticmethod
+    def count_online() -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM servers
+            WHERE enabled = 1
+            """
+        )
+
+        
+
+
 
 server_repo = ServerRepository()

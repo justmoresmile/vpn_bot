@@ -285,3 +285,50 @@ async def download_file(
                 f'attachment; filename="{filename}"'
         },
     )
+
+
+@router.get(
+    "/{subscription_id}/link",
+    response_model=ConfigResponse,
+)
+async def get_subscription_link(
+    subscription_id: int,
+    user: User = Depends(
+        get_current_user
+    ),
+):
+
+    subscription = subscription_service.get_by_id(
+        subscription_id
+    )
+
+    if subscription is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription not found",
+        )
+
+    check_subscription_owner(
+        subscription,
+        user,
+    )
+
+    if subscription.protocol != "vless":
+        raise HTTPException(
+            status_code=400,
+            detail="Subscription link is available only for VLESS",
+        )
+
+    config = await vpn_service.get_config(
+        subscription_id
+    )
+
+    if not config:
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription link not found",
+        )
+
+    return ConfigResponse(
+        config=config,
+    )

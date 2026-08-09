@@ -26,11 +26,12 @@ def wireguard_link_to_config(link: str) -> str:
         lines.append(f"MTU = {mtu[0]}")
 
     lines.extend([
-        "",
-        "[Peer]",
-        f"PublicKey = {public_key}",
-        "AllowedIPs = 0.0.0.0/0, ::/0",
-        f"Endpoint = {endpoint}",
+    "",
+    "[Peer]",
+    f"PublicKey = {public_key}",
+    "AllowedIPs = 0.0.0.0/0, ::/0",
+    f"Endpoint = {endpoint}",
+    "PersistentKeepalive = 25",
     ])
 
     return "\n".join(lines)

@@ -17,10 +17,13 @@ class Subscription:
     client_id: str
     client_email: str
 
+    # Короткий токен нашей подписки
+    subscription_token: str | None = None
+
     # Используется только VLESS.
     # Для WireGuard остается None.
     sub_id: str | None = None
-
+   
     config: str = ""
 
     status: SubscriptionStatus = SubscriptionStatus.ACTIVE

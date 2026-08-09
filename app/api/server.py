@@ -2,12 +2,16 @@ from contextlib import asynccontextmanager
 import asyncio
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routers import router
 from app.bootstrap import init_ssl
 
 from app.tasks.subscription_task import subscription_task
-from app.api.routes.admin import router as admin_router
+
+from app.api.routes.public_subscription import (
+    router as public_subscription_router,
+)
 
 init_ssl()
 
@@ -21,9 +25,7 @@ async def lifespan(
         subscription_task()
     )
 
-
     yield
-
 
     task.cancel()
 
@@ -40,11 +42,25 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
-
 app.include_router(
-    admin_router,
-    prefix="/api/v1",
+    public_subscription_router
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
-app.include_router(router)
+app.include_router(
+    router
+)
+app.include_router(
+    public_subscription_router
+)

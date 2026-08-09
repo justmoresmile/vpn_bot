@@ -23,6 +23,11 @@ class SubscriptionRepository:
                 if "sub_id" in row.keys()
                 else None
             ),
+            subscription_token=(
+                row["subscription_token"]
+                if "subscription_token" in row.keys()
+                else None
+            ),
             config=row["config"],
             status=SubscriptionStatus(
                 row["status"]
@@ -53,12 +58,13 @@ class SubscriptionRepository:
                 client_uuid,
                 client_email,
                 sub_id,
+                subscription_token,
                 config,
                 status,
                 created_at,
                 expires_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 subscription.user_id,
@@ -68,6 +74,7 @@ class SubscriptionRepository:
                 subscription.client_id,
                 subscription.client_email,
                 subscription.sub_id,
+                subscription.subscription_token,
                 subscription.config,
                 subscription.status,
                 int(subscription.created_at.timestamp()),
@@ -321,9 +328,10 @@ class SubscriptionRepository:
                 client_uuid=?,
                 client_email=?,
                 sub_id=?,
+                subscription_token=?,
                 config=?,
                 status=?,
-                expires_at=?
+                expires_at=?               
             WHERE id=?
             """,
             (
@@ -333,6 +341,7 @@ class SubscriptionRepository:
                 subscription.client_id,
                 subscription.client_email,
                 subscription.sub_id,
+                subscription.subscription_token,
                 subscription.config,
                 subscription.status,
                 int(subscription.expires_at.timestamp()),
@@ -521,5 +530,65 @@ class SubscriptionRepository:
 
         return subscriptions, row["total"]
 
+
+
+    @staticmethod
+    def get_by_server(
+        server_id: int,
+    ):
+
+        rows = db.fetchall(
+            """
+            SELECT *
+            FROM subscriptions
+            WHERE server_id = ?
+            """,
+            (
+                server_id,
+            ),
+        )
+
+
+        return [
+            SubscriptionRepository._to_entity(row)
+            for row in rows
+        ]
+
+
+
+    def count_by_server(
+        self,
+        server_id: int,
+    ) -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*)
+            FROM subscriptions
+            WHERE server_id = ?
+            """,
+            (server_id,),
+        )
+
+        return row[0]
+
+    @staticmethod
+    def get_by_token(
+        token: str,
+    ) -> Subscription | None:
+
+        row = db.fetchone(
+            """
+            SELECT *
+            FROM subscriptions
+            WHERE subscription_token = ?
+            """,
+            (token,),
+        )
+
+        if row is None:
+            return None
+
+        return SubscriptionRepository._to_entity(row)
 
 subscription_repo = SubscriptionRepository()

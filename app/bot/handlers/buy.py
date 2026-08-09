@@ -153,7 +153,7 @@ async def create_subscription(
 
         payment = await api_client.create_purchase(
             telegram_id=message.chat.id,
-            protocol="wireguard",
+            protocol="vless",
             days=days,
             subscription_id=subscription_id,
         )

@@ -4,17 +4,14 @@ from app.config import settings
 
 class AuthService:
 
+
     def login_by_api_key(
         self,
-        telegram_id: int,
         api_key: str,
     ) -> str | None:
 
-        if api_key != settings.backend_api_key:
-            return None
-
-        user = users_repo.get_by_telegram(
-            telegram_id
+        user = users_repo.get_by_api_key(
+            api_key
         )
 
         if user is None:
@@ -23,6 +20,7 @@ class AuthService:
         return jwt_service.create_token(
             user.id
         )
+
 
     def login_by_telegram(
         self,

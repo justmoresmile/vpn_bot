@@ -28,7 +28,9 @@ class PaymentRepository:
 
             currency=row["currency"],
 
-            status=row["status"],
+            status=PaymentStatus(
+                row["status"]
+            ),
 
             provider=row["provider"],
 
@@ -672,6 +674,98 @@ class PaymentRepository:
             PaymentRepository._to_entity(row)
             for row in rows
         ]
+
+
+    @staticmethod
+    def get_admin_payments(
+        limit: int = 10,
+        offset: int = 0,
+    ):
+
+        rows = db.fetchall(
+            """
+            SELECT
+
+                p.id,
+
+                p.user_id,
+
+                p.subscription_id,
+
+                p.protocol,
+
+                p.subscription_days,
+
+                p.amount,
+
+                p.currency,
+
+                p.status,
+
+                p.provider,
+
+                p.created_at,
+
+                p.paid_at,
+
+
+                u.telegram_id,
+
+                u.username,
+
+                u.first_name,
+
+
+                s.client_email
+
+
+            FROM payments p
+
+
+            LEFT JOIN users u
+
+            ON u.id = p.user_id
+
+
+            LEFT JOIN subscriptions s
+
+            ON s.id = p.subscription_id
+
+
+            ORDER BY p.created_at DESC
+
+
+            LIMIT ?
+
+            OFFSET ?
+
+            """,
+            (
+                limit,
+                offset,
+            ),
+        )
+
+
+        return rows
+
+    @staticmethod
+    def set_subscription(
+        payment_id: int,
+        subscription_id: int,
+    ):
+
+        db.execute(
+            """
+            UPDATE payments
+            SET subscription_id = ?
+            WHERE id = ?
+            """,
+            (
+                subscription_id,
+                payment_id,
+            ),
+        )
 
 
     

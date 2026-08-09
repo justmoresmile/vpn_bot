@@ -10,17 +10,24 @@ class UsersRepository:
 
         return User(
             id=row["id"],
+
             telegram_id=row["telegram_id"],
+
             username=row["username"],
+
             first_name=row["first_name"],
-            is_admin=bool(row["is_admin"]),
-            api_key=row["api_key"],
-            created_at=(
-                datetime.fromtimestamp(row["created_at"])
-                if "created_at" in row.keys()
-                and row["created_at"]
-                else None
+
+            is_admin=bool(
+                row["is_admin"]
             ),
+
+            is_blocked=(
+                bool(row["is_blocked"])
+                if "is_blocked" in row.keys()
+                else False
+            ),
+
+            api_key=row["api_key"],
         )
 
 
@@ -320,4 +327,84 @@ class UsersRepository:
             for row in rows
         ]
 
+
+
+    @staticmethod
+    def block(
+        user_id: int,
+    ):
+
+        db.execute(
+            """
+            UPDATE users
+            SET is_blocked = 1
+            WHERE id = ?
+            """,
+            (
+                user_id,
+            ),
+        )
+
+
+
+    @staticmethod
+    def unblock(
+        user_id: int,
+    ):
+
+        db.execute(
+            """
+            UPDATE users
+            SET is_blocked = 0
+            WHERE id = ?
+            """,
+            (
+                user_id,
+            ),
+        )
+
+
+
+    @staticmethod
+    def count_blocked() -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM users
+            WHERE is_blocked = 1
+            """
+        )
+
+        return row["total"]
+
+
+
+    @staticmethod
+    def count_admins() -> int:
+
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS total
+            FROM users
+            WHERE is_admin = 1
+            """
+        )
+
+        return row["total"]
+
+
+    @staticmethod
+    def get_blocked():
+
+        rows = db.fetchall(
+            """
+            SELECT *
+            FROM users
+            WHERE is_blocked = 1
+            ORDER BY id DESC
+            """
+        )
+
+        return rows
 users_repo = UsersRepository()

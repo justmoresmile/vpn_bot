@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -9,17 +10,35 @@ from app.domain.subscription import Subscription
 
 class ProtocolHandler(ABC):
     """
-    Базовый класс всех VPN-протоколов.
+    Базовый интерфейс всех VPN-протоколов.
 
-    Каждый наследник автоматически регистрируется
-    по своему имени protocol.
+    Каждый протокол наследуется от этого класса и указывает
+    собственное имя через class attribute `protocol`.
+
+    Например:
+
+        class VlessHandler(ProtocolHandler):
+            protocol = "vless"
+
+        class WireGuardHandler(ProtocolHandler):
+            protocol = "wireguard"
+
+    После импорта класса он автоматически регистрируется
+    в общем реестре ProtocolHandler.
     """
 
     protocol: ClassVar[str]
 
-    _registry: dict[str, type["ProtocolHandler"]] = {}
+    _registry: ClassVar[
+        dict[str, type["ProtocolHandler"]]
+    ] = {}
 
     def __init_subclass__(cls, **kwargs):
+        """
+        Автоматически регистрирует наследников
+        в реестре протоколов.
+        """
+
         super().__init_subclass__(**kwargs)
 
         protocol = getattr(cls, "protocol", None)
@@ -31,21 +50,34 @@ class ProtocolHandler(ABC):
     def create(
         cls,
         protocol: str,
+        server=None,
     ) -> "ProtocolHandler":
+        """
+        Создаёт обработчик указанного протокола.
+
+        Например:
+
+            handler = ProtocolHandler.create(
+                "vless",
+                server,
+            )
+        """
 
         handler_cls = cls._registry.get(protocol)
 
         if handler_cls is None:
             raise ValueError(
-                f"Unsupported protocol '{protocol}'"
+                f"Unsupported protocol '{protocol}'. "
+                f"Available protocols: {cls.protocols()}"
             )
 
-        return handler_cls()
+        return handler_cls(server)
 
     @classmethod
-    def protocols(
-        cls,
-    ) -> list[str]:
+    def protocols(cls) -> list[str]:
+        """
+        Возвращает список зарегистрированных протоколов.
+        """
 
         return sorted(cls._registry.keys())
 
@@ -54,6 +86,9 @@ class ProtocolHandler(ABC):
         self,
         xui,
     ) -> Inbound | None:
+        """
+        Находит подходящий inbound для данного протокола.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -62,6 +97,9 @@ class ProtocolHandler(ABC):
         subscription: Subscription,
         inbound: Inbound,
     ) -> dict:
+        """
+        Формирует payload клиента для XUI.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -70,15 +108,23 @@ class ProtocolHandler(ABC):
         subscription: Subscription,
         inbound: Inbound,
     ) -> str:
+        """
+        Формирует клиентскую конфигурацию.
+        """
         raise NotImplementedError
 
     @abstractmethod
     async def create_subscription(
         self,
         xui,
+        server,
         user_id: int,
         days: int,
     ) -> Subscription:
+        """
+        Создаёт новую VPN-подписку и клиента
+        в соответствующем протоколе.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -87,6 +133,21 @@ class ProtocolHandler(ABC):
         xui,
         subscription: Subscription,
     ) -> Subscription:
+        """
+        Восстанавливает клиента протокола.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def restore(
+        self,
+        xui,
+        subscription: Subscription,
+    ) -> Subscription:
+        """
+        Восстанавливает подписку после необходимости
+        пересоздания/восстановления клиента.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -96,6 +157,9 @@ class ProtocolHandler(ABC):
         subscription: Subscription,
         days: int,
     ) -> Subscription:
+        """
+        Продлевает существующую подписку.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -104,6 +168,9 @@ class ProtocolHandler(ABC):
         xui,
         subscription: Subscription,
     ) -> Subscription:
+        """
+        Отключает клиента в XUI.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -112,9 +179,11 @@ class ProtocolHandler(ABC):
         xui,
         subscription: Subscription,
     ) -> Subscription:
+        """
+        Синхронизирует состояние подписки
+        с XUI.
+        """
         raise NotImplementedError
-
-
 
     @abstractmethod
     async def delete(
@@ -135,27 +204,6 @@ class ProtocolHandler(ABC):
     ) -> tuple[str, bytes]:
         """
         Возвращает готовый конфигурационный файл.
-        """
-        raise NotImplementedError
-
-
-
-    @abstractmethod
-    async def delete(
-        self,
-        xui,
-        subscription: Subscription,
-    ) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def get_file(
-        self,
-        xui,
-        subscription: Subscription,
-    ) -> tuple[str, bytes]:
-        """
-        Вернуть готовый конфигурационный файл.
 
         Returns:
             (
@@ -165,11 +213,3 @@ class ProtocolHandler(ABC):
         """
         raise NotImplementedError
 
-    async def restore(
-        self,
-    subscription,
-    ):
-      raise NotImplementedError
-
-# Автоматически загружаем все протоколы
-from app.protocols.loader import load_protocol_handlers

@@ -65,4 +65,64 @@ class ServerService:
         return server
 
 
+
+
+    def enable_server(
+        self,
+        server_id: int,
+    ) -> Server:
+
+        server = self.get_by_id(
+            server_id
+        )
+
+        server_repo.enable(
+            server_id
+        )
+
+        return self.get_by_id(
+            server_id
+        )
+
+
+    def disable_server(
+        self,
+        server_id: int,
+    ) -> Server:
+
+        server = self.get_by_id(
+            server_id
+        )
+
+        server_repo.disable(
+            server_id
+        )
+
+        return self.get_by_id(
+            server_id
+        )
+
+
+    def delete_server(
+        self,
+        server_id: int,
+    ):
+
+        self.get_by_id(
+            server_id
+        )
+
+        count = subscription_repo.count_by_server(
+            server_id
+        )
+
+        if count > 0:
+            raise RuntimeError(
+                f"Нельзя удалить сервер. На нём находится {count} подписок."
+            )
+
+        server_repo.delete(
+            server_id
+        )
+
 server_service = ServerService()

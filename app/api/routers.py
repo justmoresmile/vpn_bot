@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter
 
 from app.api.routes.health import router as health_router
@@ -8,6 +9,7 @@ from app.api.routes.vpn import router as vpn_router
 from app.api.routes.payment import router as payment_router
 from app.api.routes.purchase import router as purchase_router
 from app.api.routes.internal import router as internal_router
+from app.api.routes.admin import router as admin_router
 
 
 router = APIRouter(
@@ -46,3 +48,8 @@ router.include_router(
 router.include_router(
     internal_router
 )
+
+router.include_router(
+    admin_router
+)
+

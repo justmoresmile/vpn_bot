@@ -1,7 +1,19 @@
+import inspect
 from loguru import logger
 
 from app.repositories.subscription_repository import subscription_repo
 from app.services.vpn_service import vpn_service
+
+
+print(
+    "VPN SERVICE FILE:",
+    inspect.getfile(vpn_service.__class__)
+)
+
+print(
+    "METHODS:",
+    dir(vpn_service)
+)
 
 
 class SyncService:
@@ -22,20 +34,29 @@ class SyncService:
 
             return
 
+
         logger.info(
             "Synchronizing {} subscriptions.",
             total,
         )
 
+
         success = 0
+
 
         for subscription in subscriptions:
 
             try:
 
-                await vpn_service.sync_subscription(
+                synced = await vpn_service.sync_subscription(
                     subscription
                 )
+
+
+                subscription_repo.update(
+                    synced
+                )
+
 
                 success += 1
 
@@ -48,12 +69,12 @@ class SyncService:
                 )
 
 
-
         logger.info(
             "Synchronization finished ({}/{}).",
             success,
             total,
         )
+
 
 
 sync_service = SyncService()
