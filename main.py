@@ -12,6 +12,9 @@ from app.database.seed import seed_database
 from app.logger import logger
 from app.services.vpn_service import vpn_service
 from app.tasks.subscription_task import subscription_task
+from app.api.routes.public_subscription import (
+    router as public_subscription_router,
+)
 
 
 async def run_bot():

@@ -1,6 +1,9 @@
 from app.repositories.user_repository import users_repo
 from app.services.auth.jwt_service import jwt_service
 from app.config import settings
+from app.services.user_service import (
+    user_service,
+)
 
 class AuthService:
 
@@ -56,5 +59,32 @@ class AuthService:
             user_id
         )
 
+
+    def login_by_telegram_webapp(
+        self,
+        init_data: str,
+    ) -> str | None:
+
+        telegram_user = (
+            telegram_webapp_auth.validate_init_data(
+                init_data
+            )
+        )
+
+        if telegram_user is None:
+            return None
+
+        _, user = user_service.sync_user(
+            telegram_id=telegram_user["telegram_id"],
+            username=telegram_user["username"],
+            first_name=telegram_user["first_name"],
+        )
+
+        if user is None:
+            return None
+
+        return jwt_service.create_token(
+            user.id
+        )
 
 auth_service = AuthService()

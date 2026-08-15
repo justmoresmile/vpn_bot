@@ -4,6 +4,7 @@ from aiogram.types import Message
 
 from app.bot.clients.api_client import api_client
 from app.bot.keyboards.main_menu import main_menu
+from app.bot.keyboards.miniapp import miniapp_keyboard
 
 
 router = Router()
@@ -58,6 +59,11 @@ async def start(
         await message.answer(
             text,
             parse_mode="HTML",
+            reply_markup=miniapp_keyboard,
+        )
+
+        await message.answer(
+            "Выберите действие:",
             reply_markup=main_menu,
         )
 
