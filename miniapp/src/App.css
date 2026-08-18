@@ -3849,3 +3849,179 @@ button {
 
     font-size: 20px;
 }
+
+
+/* =========================================
+   TARIFFS
+========================================= */
+
+.tariff-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 12px;
+}
+
+.tariff-card {
+    position: relative;
+
+    min-width: 0;
+
+    padding: 16px;
+
+    text-align: left;
+
+    border: 1px solid var(--border);
+    border-radius: 20px;
+
+    background: var(--card);
+    color: var(--text);
+
+    box-shadow: var(--shadow);
+
+    cursor: pointer;
+
+    transition:
+        border-color 0.18s ease,
+        background 0.18s ease,
+        transform 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.tariff-card:active {
+    transform: scale(0.98);
+}
+
+.tariff-card.active {
+    border-color: var(--accent);
+
+    background:
+        color-mix(in srgb,
+            var(--accent) 8%,
+            var(--card));
+
+    box-shadow:
+        0 0 0 1px color-mix(in srgb,
+            var(--accent) 35%,
+            transparent),
+        var(--shadow);
+}
+
+.tariff-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 8px;
+
+    min-height: 48px;
+}
+
+.tariff-period {
+    font-size: 15px;
+    font-weight: 800;
+
+    line-height: 1.2;
+}
+
+.tariff-device {
+    margin-top: 5px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.tariff-badge {
+    flex-shrink: 0;
+
+    padding: 5px 8px;
+
+    border-radius: 999px;
+
+    background:
+        color-mix(in srgb,
+            var(--accent) 14%,
+            transparent);
+
+    color: var(--accent);
+
+    font-size: 10px;
+    font-weight: 800;
+
+    line-height: 1;
+}
+
+.tariff-badge-best {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.tariff-price {
+    margin-top: 20px;
+
+    font-size: 25px;
+    font-weight: 900;
+
+    line-height: 1;
+}
+
+.tariff-monthly {
+    margin-top: 7px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.tariff-check {
+    position: absolute;
+
+    right: 12px;
+    bottom: 12px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 22px;
+    height: 22px;
+
+    border: 1px solid var(--border);
+    border-radius: 50%;
+
+    background: var(--card);
+    color: transparent;
+
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.tariff-card.active .tariff-check {
+    border-color: var(--accent);
+
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.tariff-buy-button {
+    margin-top: 18px;
+}
+
+@media (max-width: 360px) {
+
+    .tariff-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tariff-card {
+        padding: 15px;
+    }
+
+}
+
+.renew-tariffs {
+    margin-top: 16px;
+}

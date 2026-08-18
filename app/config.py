@@ -75,6 +75,7 @@ class Settings:
 
     backend_api_url: str
     backend_api_key: str
+    public_subscription_base_url: str
 
     # ------------------------------------------------------------------
     # Debug
@@ -231,6 +232,9 @@ settings = Settings(
 
     backend_api_key=require_env(
         "BACKEND_API_KEY"
+    ),
+    public_subscription_base_url=require_env(
+    "PUBLIC_SUBSCRIPTION_BASE_URL"
     ),
 
     # ------------------------------------------------------------------

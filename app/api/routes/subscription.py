@@ -26,7 +26,7 @@ from app.services.subscription_service import (
 from app.services.vpn_service import (
     vpn_service,
 )
-
+from app.config import settings
 
 router = APIRouter(
     prefix="/subscription",
@@ -127,21 +127,19 @@ async def get_config(
     )
 
 
-    config = await vpn_service.get_config(
-        subscription_id
-    )
-
-
-    if config is None:
-
+    if not subscription.subscription_token:
         raise HTTPException(
             status_code=404,
-            detail="Config not found",
+            detail="Subscription token not found",
         )
 
+    link = (
+        f"{settings.public_subscription_base_url.rstrip('/')}"
+        f"/{subscription.subscription_token}"
+    )
 
     return ConfigResponse(
-        config=config,
+        config=link,
     )
 
 

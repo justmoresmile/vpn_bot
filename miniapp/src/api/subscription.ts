@@ -1,4 +1,8 @@
-import { apiRequest } from './api'
+import {
+    apiBlobRequest,
+    apiRequest,
+} from './api'
+
 
 export type Subscription = {
     id: number
@@ -7,6 +11,7 @@ export type Subscription = {
     expires_at: string
     client_email: string | null
 }
+
 
 export type SubscriptionDetails = {
     id: number
@@ -17,9 +22,11 @@ export type SubscriptionDetails = {
     client_email: string
 }
 
+
 export type ConfigResponse = {
     config: string
 }
+
 
 export type RenewResponse = {
     id: number
@@ -27,40 +34,50 @@ export type RenewResponse = {
     expires_at: string
 }
 
+
 export async function getSubscriptions(): Promise<Subscription[]> {
+
     return apiRequest<Subscription[]>(
         '/user/me/subscriptions',
     )
 }
 
+
 export async function getSubscription(
     subscriptionId: number,
 ): Promise<SubscriptionDetails> {
+
     return apiRequest<SubscriptionDetails>(
         `/subscription/${subscriptionId}`,
     )
 }
 
+
 export async function getSubscriptionConfig(
     subscriptionId: number,
 ): Promise<ConfigResponse> {
+
     return apiRequest<ConfigResponse>(
         `/subscription/${subscriptionId}/config`,
     )
 }
 
+
 export async function getSubscriptionLink(
     subscriptionId: number,
 ): Promise<ConfigResponse> {
+
     return apiRequest<ConfigResponse>(
         `/subscription/${subscriptionId}/link`,
     )
 }
 
+
 export async function renewSubscription(
     subscriptionId: number,
     days = 30,
 ): Promise<RenewResponse> {
+
     return apiRequest<RenewResponse>(
         `/subscription/${subscriptionId}/renew?days=${days}`,
         {
@@ -69,52 +86,22 @@ export async function renewSubscription(
     )
 }
 
+
 export async function getSubscriptionQr(
     subscriptionId: number,
 ): Promise<Blob> {
-    const token = localStorage.getItem('access_token')
 
-    const response = await fetch(
-        `http://127.0.0.1:8000/api/v1/subscription/${subscriptionId}/qr`,
-        {
-            headers: token
-                ? {
-                    Authorization: `Bearer ${token}`,
-                }
-                : {},
-        },
+    return apiBlobRequest(
+        `/subscription/${subscriptionId}/qr`,
     )
-
-    if (!response.ok) {
-        throw new Error(
-            `API error: ${response.status}`,
-        )
-    }
-
-    return response.blob()
 }
+
 
 export async function downloadSubscriptionFile(
     subscriptionId: number,
 ): Promise<Blob> {
-    const token = localStorage.getItem('access_token')
 
-    const response = await fetch(
-        `http://127.0.0.1:8000/api/v1/subscription/${subscriptionId}/file`,
-        {
-            headers: token
-                ? {
-                    Authorization: `Bearer ${token}`,
-                }
-                : {},
-        },
+    return apiBlobRequest(
+        `/subscription/${subscriptionId}/file`,
     )
-
-    if (!response.ok) {
-        throw new Error(
-            `API error: ${response.status}`,
-        )
-    }
-
-    return response.blob()
 }
