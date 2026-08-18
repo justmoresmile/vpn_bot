@@ -17,8 +17,7 @@ class YooKassaClient:
             settings.yookassa_secret_key
         )
 
-        # ВАЖНО
-        Configuration.verify = False
+        
 
 
     def create_payment(
