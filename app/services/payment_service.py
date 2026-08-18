@@ -10,6 +10,7 @@ from app.payments.yookassa_client import yookassa_client
 from app.services.vpn_service import vpn_service
 from app.repositories.user_repository import users_repo
 from app.services.subscription_service import subscription_service
+import asyncio
 
 
 class PaymentService:
@@ -40,7 +41,7 @@ class PaymentService:
         return price
 
 
-    def create_payment(
+    async def create_payment(
         self,
         user_id: int,
         protocol: str,
@@ -67,7 +68,8 @@ class PaymentService:
 
             return existing
 
-        payment = yookassa_client.create_payment(
+        payment = await asyncio.to_thread(
+            yookassa_client.create_payment,
             amount=amount,
             description=f"VPN {protocol.upper()} {days} дней",
         )
@@ -310,8 +312,9 @@ class PaymentService:
     ) -> bool:
 
 
-        payment = yookassa_client.get_payment(
-            provider_payment_id
+        payment = await asyncio.to_thread(
+            yookassa_client.get_payment,
+            provider_payment_id,
         )
 
 
@@ -358,13 +361,12 @@ class PaymentService:
         if user is None:
             return None
 
-        return self.create_payment(
+        return await self.create_payment(
             user_id=user.id,
             protocol=protocol,
             days=days,
             subscription_id=subscription_id,
         )
-
 
     def get_user_payments(
         self,
