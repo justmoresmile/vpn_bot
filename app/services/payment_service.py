@@ -8,7 +8,6 @@ from app.domain.enums.payment_status import PaymentStatus
 from app.repositories.payment_repository import payment_repo
 from app.payments.yookassa_client import yookassa_client
 from app.services.vpn_service import vpn_service
-from app.bot.services import telegram_service
 from app.repositories.user_repository import users_repo
 from app.services.subscription_service import subscription_service
 
@@ -255,6 +254,10 @@ class PaymentService:
         # =========================================================
         # TELEGRAM
         # =========================================================
+
+        # Lazy import:
+        # не тянем Telegram Bot слой во время импорта Backend API.
+        from app.bot.services.telegram_service import telegram_service
 
         user = users_repo.get_by_id(
             payment.user_id

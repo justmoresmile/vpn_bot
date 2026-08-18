@@ -8,6 +8,7 @@ from app.api.routers import router
 from app.bootstrap import init_ssl
 
 from app.tasks.subscription_task import subscription_task
+from app.services.vpn_service import vpn_service
 
 from app.api.routes.public_subscription import (
     router as public_subscription_router,
@@ -25,16 +26,20 @@ async def lifespan(
         subscription_task()
     )
 
-    yield
-
-    task.cancel()
-
     try:
-        await task
+        yield
 
-    except asyncio.CancelledError:
-        pass
+    finally:
 
+        task.cancel()
+
+        try:
+            await task
+
+        except asyncio.CancelledError:
+            pass
+
+        await vpn_service.close()
 
 
 app = FastAPI(
@@ -61,7 +66,4 @@ app.add_middleware(
 
 app.include_router(
     router
-)
-app.include_router(
-    public_subscription_router
 )

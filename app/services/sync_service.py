@@ -1,20 +1,7 @@
-import inspect
 from loguru import logger
 
 from app.repositories.subscription_repository import subscription_repo
 from app.services.vpn_service import vpn_service
-
-
-print(
-    "VPN SERVICE FILE:",
-    inspect.getfile(vpn_service.__class__)
-)
-
-print(
-    "METHODS:",
-    dir(vpn_service)
-)
-
 
 class SyncService:
 
