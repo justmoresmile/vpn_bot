@@ -2,33 +2,33 @@
 set -Eeuo pipefail
 
 PROJECT_DIR="/opt/vpn-bot"
-ENV_FILE="$PROJECT_DIR/.env"
 
 if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 /path/to/backup.tar.gz.enc"
+    echo "Usage:"
+    echo "  $0 /var/backups/vpn-bot/justvpn_YYYYMMDD_HHMMSS.tar.gz.enc"
     exit 1
 fi
 
-BACKUP="$1"
-CHECKSUM="${BACKUP}.sha256"
+BACKUP_FILE="$1"
+CHECKSUM_FILE="${BACKUP_FILE}.sha256"
 
-if [[ ! -f "$BACKUP" ]]; then
-    echo "ERROR: backup not found: $BACKUP"
+if [[ ! -f "$BACKUP_FILE" ]]; then
+    echo "ERROR: backup not found: $BACKUP_FILE"
     exit 1
 fi
 
-if [[ ! -f "$CHECKSUM" ]]; then
-    echo "ERROR: checksum not found: $CHECKSUM"
+if [[ ! -f "$CHECKSUM_FILE" ]]; then
+    echo "ERROR: checksum not found: $CHECKSUM_FILE"
     exit 1
 fi
 
-if [[ ! -f "$ENV_FILE" ]]; then
-    echo "ERROR: $ENV_FILE not found"
+if [[ ! -f "$PROJECT_DIR/.env" ]]; then
+    echo "ERROR: $PROJECT_DIR/.env not found"
     exit 1
 fi
 
 set -a
-source "$ENV_FILE"
+source "$PROJECT_DIR/.env"
 set +a
 
 if [[ -z "${BACKUP_PASSPHRASE:-}" ]]; then
@@ -36,21 +36,23 @@ if [[ -z "${BACKUP_PASSPHRASE:-}" ]]; then
     exit 1
 fi
 
-TMPDIR="$(mktemp -d)"
-DECRYPTED="$TMPDIR/backup.tar.gz"
-EXTRACTED="$TMPDIR/extracted"
+WORKDIR="$(mktemp -d)"
+ARCHIVE="$WORKDIR/backup.tar.gz"
+EXTRACTED="$WORKDIR/extracted"
 
 cleanup() {
-    rm -rf "$TMPDIR"
+    rm -rf "$WORKDIR"
 }
+
 trap cleanup EXIT
 
 mkdir -p "$EXTRACTED"
 
 echo "===== SHA256 ====="
+
 (
-    cd "$(dirname "$BACKUP")"
-    sha256sum -c "$(basename "$CHECKSUM")"
+    cd "$(dirname "$BACKUP_FILE")"
+    sha256sum -c "$(basename "$CHECKSUM_FILE")"
 )
 
 echo
@@ -62,16 +64,16 @@ openssl enc \
     -pbkdf2 \
     -iter 200000 \
     -pass env:BACKUP_PASSPHRASE \
-    -in "$BACKUP" \
-    -out "$DECRYPTED"
+    -in "$BACKUP_FILE" \
+    -out "$ARCHIVE"
 
 echo "DECRYPTION OK"
 
 echo
 echo "===== ARCHIVE ====="
 
-tar -tzf "$DECRYPTED" >/dev/null
-tar -xzf "$DECRYPTED" -C "$EXTRACTED"
+tar -tzf "$ARCHIVE" >/dev/null
+tar -xzf "$ARCHIVE" -C "$EXTRACTED"
 
 echo "ARCHIVE OK"
 
@@ -79,53 +81,92 @@ echo
 echo "===== JUSTVPN DB ====="
 
 if [[ -f "$EXTRACTED/justvpn/vpn.db" ]]; then
-    sqlite3 "$EXTRACTED/justvpn/vpn.db" "PRAGMA integrity_check;"
 
-    sqlite3 "$EXTRACTED/justvpn/vpn.db" "
-        SELECT 'users=' || COUNT(*) FROM users;
-        SELECT 'servers=' || COUNT(*) FROM servers;
-        SELECT 'subscriptions=' || COUNT(*) FROM subscriptions;
-    "
+    RESULT="$(
+        sqlite3 \
+            "$EXTRACTED/justvpn/vpn.db" \
+            "PRAGMA integrity_check;"
+    )"
+
+    echo "$RESULT"
+
+    if [[ "$RESULT" != "ok" ]]; then
+        echo "ERROR: JustVPN database integrity failed"
+        exit 1
+    fi
+
+    for table in \
+        users \
+        servers \
+        subscriptions \
+        payments
+    do
+
+        EXISTS="$(
+            sqlite3 "$EXTRACTED/justvpn/vpn.db" \
+                "SELECT COUNT(*)
+                 FROM sqlite_master
+                 WHERE type='table'
+                   AND name='$table';"
+        )"
+
+        if [[ "$EXISTS" == "1" ]]; then
+
+            COUNT="$(
+                sqlite3 "$EXTRACTED/justvpn/vpn.db" \
+                    "SELECT COUNT(*) FROM $table;"
+            )"
+
+            echo "$table=$COUNT"
+
+        else
+
+            echo "$table=NOT_PRESENT"
+
+        fi
+
+    done
+
 else
-    echo "JustVPN DB not present"
+
+    echo "WARNING: JustVPN DB not present"
+
 fi
 
 echo
-echo "===== X-UI DB ====="
+echo "===== ENV ====="
 
-if [[ -f "$EXTRACTED/x-ui/x-ui.db" ]]; then
-    sqlite3 "$EXTRACTED/x-ui/x-ui.db" "PRAGMA integrity_check;"
-
-    sqlite3 "$EXTRACTED/x-ui/x-ui.db" "
-        SELECT 'inbounds=' || COUNT(*) FROM inbounds;
-    "
+if [[ -f "$EXTRACTED/env/.env" ]]; then
+    echo ".env = PRESENT"
 else
-    echo "ERROR: x-ui DB missing"
+    echo ".env = MISSING"
     exit 1
 fi
 
 echo
-echo "===== X-UI INBOUNDS ====="
+echo "===== SYSTEMD ====="
 
-sqlite3 -header -column "$EXTRACTED/x-ui/x-ui.db" "
-SELECT id, remark, protocol, listen, port, enable
-FROM inbounds
-ORDER BY id;
-"
+if [[ -f "$EXTRACTED/systemd/justvpn.service" ]]; then
+    echo "justvpn.service = PRESENT"
+else
+    echo "justvpn.service = MISSING"
+fi
 
 echo
-echo "===== CERTIFICATES ====="
+echo "===== NGINX ====="
 
-if [[ -d "$EXTRACTED/x-ui/cert" ]]; then
-    find "$EXTRACTED/x-ui/cert" -type f | wc -l
+if [[ -f "$EXTRACTED/nginx/justvpn-web" ]]; then
+    echo "justvpn-web = PRESENT"
 else
-    echo "No x-ui certificate directory in backup"
+    echo "justvpn-web = MISSING"
 fi
 
 echo
 echo "===== METADATA ====="
 
-cat "$EXTRACTED/meta/backup-info.txt" 2>/dev/null || true
+cat \
+    "$EXTRACTED/meta/backup-info.txt" \
+    2>/dev/null || true
 
 echo
 echo "BACKUP VERIFIED SUCCESSFULLY"

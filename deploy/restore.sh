@@ -2,33 +2,39 @@
 set -Eeuo pipefail
 
 PROJECT_DIR="/opt/vpn-bot"
-ENV_FILE="$PROJECT_DIR/.env"
+
+if [[ "$(id -u)" -ne 0 ]]; then
+    echo "ERROR: run as root"
+    exit 1
+fi
 
 if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 /path/to/backup.tar.gz.enc"
+    echo "Usage:"
+    echo "  $0 /var/backups/vpn-bot/justvpn_YYYYMMDD_HHMMSS.tar.gz.enc"
     exit 1
 fi
 
-BACKUP="$1"
-CHECKSUM="${BACKUP}.sha256"
+BACKUP_FILE="$1"
+CHECKSUM_FILE="${BACKUP_FILE}.sha256"
 
-if [[ ! -f "$BACKUP" ]]; then
-    echo "ERROR: backup not found: $BACKUP"
+if [[ ! -f "$BACKUP_FILE" ]]; then
+    echo "ERROR: backup not found: $BACKUP_FILE"
     exit 1
 fi
 
-if [[ ! -f "$CHECKSUM" ]]; then
-    echo "ERROR: checksum not found: $CHECKSUM"
+if [[ ! -f "$CHECKSUM_FILE" ]]; then
+    echo "ERROR: checksum not found: $CHECKSUM_FILE"
     exit 1
 fi
 
-if [[ ! -f "$ENV_FILE" ]]; then
-    echo "ERROR: $ENV_FILE not found"
+if [[ ! -f "$PROJECT_DIR/.env" ]]; then
+    echo "ERROR: $PROJECT_DIR/.env is required to read BACKUP_PASSPHRASE"
+    echo "Create .env and set BACKUP_PASSPHRASE first."
     exit 1
 fi
 
 set -a
-source "$ENV_FILE"
+source "$PROJECT_DIR/.env"
 set +a
 
 if [[ -z "${BACKUP_PASSPHRASE:-}" ]]; then
@@ -36,21 +42,23 @@ if [[ -z "${BACKUP_PASSPHRASE:-}" ]]; then
     exit 1
 fi
 
-TMPDIR="$(mktemp -d)"
-DECRYPTED="$TMPDIR/backup.tar.gz"
-EXTRACTED="$TMPDIR/extracted"
+WORKDIR="$(mktemp -d)"
+ARCHIVE="$WORKDIR/backup.tar.gz"
+EXTRACTED="$WORKDIR/extracted"
 
 cleanup() {
-    rm -rf "$TMPDIR"
+    rm -rf "$WORKDIR"
 }
+
 trap cleanup EXIT
 
 mkdir -p "$EXTRACTED"
 
-echo "===== VERIFY CHECKSUM ====="
+echo "===== SHA256 ====="
+
 (
-    cd "$(dirname "$BACKUP")"
-    sha256sum -c "$(basename "$CHECKSUM")"
+    cd "$(dirname "$BACKUP_FILE")"
+    sha256sum -c "$(basename "$CHECKSUM_FILE")"
 )
 
 echo
@@ -62,16 +70,41 @@ openssl enc \
     -pbkdf2 \
     -iter 200000 \
     -pass env:BACKUP_PASSPHRASE \
-    -in "$BACKUP" \
-    -out "$DECRYPTED"
+    -in "$BACKUP_FILE" \
+    -out "$ARCHIVE"
 
-tar -xzf "$DECRYPTED" -C "$EXTRACTED"
+echo "DECRYPTION OK"
 
 echo
-echo "===== STOP SERVICES ====="
+echo "===== ARCHIVE ====="
+
+tar -tzf "$ARCHIVE" >/dev/null
+tar -xzf "$ARCHIVE" -C "$EXTRACTED"
+
+echo "ARCHIVE OK"
+
+echo
+echo "===== STOP JUSTVPN ====="
 
 systemctl stop justvpn 2>/dev/null || true
-systemctl stop x-ui 2>/dev/null || true
+
+echo
+echo "===== RESTORE ENV ====="
+
+if [[ -f "$EXTRACTED/env/.env" ]]; then
+
+    cp -a "$EXTRACTED/env/.env" \
+        "$PROJECT_DIR/.env"
+
+    chmod 600 "$PROJECT_DIR/.env"
+
+    echo ".env restored"
+
+else
+
+    echo "WARNING: .env missing from backup"
+
+fi
 
 echo
 echo "===== RESTORE JUSTVPN DB ====="
@@ -79,67 +112,70 @@ echo "===== RESTORE JUSTVPN DB ====="
 mkdir -p "$PROJECT_DIR/data"
 
 if [[ -f "$EXTRACTED/justvpn/vpn.db" ]]; then
-    cp -a "$EXTRACTED/justvpn/vpn.db" \
+
+    cp -a \
+        "$EXTRACTED/justvpn/vpn.db" \
         "$PROJECT_DIR/data/vpn.db"
 
     chmod 600 "$PROJECT_DIR/data/vpn.db"
-fi
 
-echo
-echo "===== RESTORE X-UI DB ====="
+    echo "vpn.db restored"
 
-if [[ -f "$EXTRACTED/x-ui/x-ui.db" ]]; then
-    mkdir -p /etc/x-ui
-
-    cp -a "$EXTRACTED/x-ui/x-ui.db" \
-        /etc/x-ui/x-ui.db
-
-    chmod 600 /etc/x-ui/x-ui.db
 else
-    echo "ERROR: x-ui database missing from backup"
-    exit 1
-fi
 
-echo
-echo "===== RESTORE X-UI CERTS ====="
+    echo "WARNING: vpn.db missing from backup"
 
-if [[ -d "$EXTRACTED/x-ui/cert" ]]; then
-    rm -rf /root/cert
-    cp -a "$EXTRACTED/x-ui/cert" /root/cert
 fi
 
 echo
 echo "===== RESTORE SYSTEMD ====="
 
 if [[ -f "$EXTRACTED/systemd/justvpn.service" ]]; then
-    cp -a "$EXTRACTED/systemd/justvpn.service" \
+
+    cp -a \
+        "$EXTRACTED/systemd/justvpn.service" \
         /etc/systemd/system/justvpn.service
+
+    chmod 644 /etc/systemd/system/justvpn.service
+
+    echo "justvpn.service restored"
+
+fi
+
+echo
+echo "===== RESTORE NGINX ====="
+
+if [[ -f "$EXTRACTED/nginx/justvpn-web" ]]; then
+
+    mkdir -p \
+        /etc/nginx/sites-available \
+        /etc/nginx/sites-enabled
+
+    cp -a \
+        "$EXTRACTED/nginx/justvpn-web" \
+        /etc/nginx/sites-available/justvpn-web
+
+    ln -sf \
+        /etc/nginx/sites-available/justvpn-web \
+        /etc/nginx/sites-enabled/justvpn-web
+
+    echo "nginx config restored"
+
 fi
 
 systemctl daemon-reload
 
 echo
-echo "===== START X-UI ====="
+echo "===== CONFIG CHECK ====="
 
-systemctl enable x-ui >/dev/null 2>&1 || true
-systemctl restart x-ui
-
-sleep 3
-
-if ! systemctl is-active --quiet x-ui; then
-    echo "ERROR: x-ui failed to start"
-    journalctl -u x-ui -n 50 --no-pager
-    exit 1
+if command -v nginx >/dev/null 2>&1; then
+    nginx -t
 fi
 
 echo
-echo "===== RESTORED INBOUNDS ====="
-
-sqlite3 -header -column /etc/x-ui/x-ui.db "
-SELECT id,remark,protocol,listen,port,enable
-FROM inbounds
-ORDER BY id;
-"
-
-echo
 echo "RESTORE COMPLETED"
+echo
+echo "Run:"
+echo "  cd $PROJECT_DIR"
+echo "  ./deploy/install.sh"
+echo

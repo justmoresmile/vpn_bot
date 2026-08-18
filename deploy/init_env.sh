@@ -4,7 +4,6 @@ set -euo pipefail
 PROJECT_DIR="/opt/vpn-bot"
 ENV_FILE="$PROJECT_DIR/.env"
 ENV_EXAMPLE="$PROJECT_DIR/.env.example"
-XUI_DB="/etc/x-ui/x-ui.db"
 
 cd "$PROJECT_DIR"
 
@@ -130,80 +129,16 @@ fi
 set_value "VPN_HOST" "$VPN_HOST"
 
 # --------------------------------------------------
-# Detect x-ui inbound IDs
+# External VPN node settings
 # --------------------------------------------------
 
-if [ -f "$XUI_DB" ]; then
-
-    VLESS_INBOUND=$(
-        sqlite3 "$XUI_DB" \
-        "SELECT id
-         FROM inbounds
-         WHERE lower(protocol)='vless'
-           AND enable=1
-         ORDER BY id
-         LIMIT 1;" \
-        2>/dev/null || true
-    )
-
-    WG_INBOUND=$(
-        sqlite3 "$XUI_DB" \
-        "SELECT id
-         FROM inbounds
-         WHERE lower(protocol)='wireguard'
-           AND enable=1
-         ORDER BY id
-         LIMIT 1;" \
-        2>/dev/null || true
-    )
-
-    set_value \
-        "VPN_VLESS_INBOUND" \
-        "$VLESS_INBOUND"
-
-    set_value \
-        "VPN_WIREGUARD_INBOUND" \
-        "$WG_INBOUND"
-
-    # --------------------------------------------------
-    # Detect local x-ui URL
-    # --------------------------------------------------
-
-    XUI_PORT=$(
-        sqlite3 "$XUI_DB" \
-        "SELECT value
-         FROM settings
-         WHERE key='webPort'
-         LIMIT 1;" \
-        2>/dev/null || true
-    )
-
-    XUI_PATH=$(
-        sqlite3 "$XUI_DB" \
-        "SELECT value
-         FROM settings
-         WHERE key='webBasePath'
-         LIMIT 1;" \
-        2>/dev/null || true
-    )
-
-    if [ -n "$XUI_PORT" ]; then
-
-        if [ -z "$XUI_PATH" ]; then
-            XUI_PATH="/"
-        fi
-
-        [[ "$XUI_PATH" != /* ]] && \
-            XUI_PATH="/$XUI_PATH"
-
-        [[ "$XUI_PATH" != */ ]] && \
-            XUI_PATH="$XUI_PATH/"
-
-        set_value \
-            "XUI_API_URL" \
-            "https://127.0.0.1:${XUI_PORT}${XUI_PATH}"
-    fi
-fi
+# These values cannot be reliably detected on the backend server.
+# Configure them manually for the VPN node:
+#
+# XUI_API_URL
+# XUI_API_TOKEN
+# VPN_VLESS_INBOUND
+# VPN_WIREGUARD_INBOUND
 
 chmod 600 "$ENV_FILE"
 

@@ -213,29 +213,6 @@ systemctl daemon-reload
 systemctl enable justvpn
 
 echo
-echo "===== X-UI CHECK ====="
-
-if ! systemctl is-active --quiet x-ui; then
-    echo "ERROR: x-ui is not active"
-    echo "Restore/install x-ui before continuing."
-    exit 1
-fi
-
-echo "x-ui ACTIVE"
-
-echo
-echo "===== VPN INBOUNDS ====="
-
-if [[ -f /etc/x-ui/x-ui.db ]]; then
-
-    sqlite3 /etc/x-ui/x-ui.db \
-        "SELECT id, remark, protocol, port, enable
-         FROM inbounds
-         ORDER BY id;" || true
-
-fi
-
-echo
 echo "===== START JUSTVPN ====="
 
 systemctl restart justvpn
@@ -384,7 +361,6 @@ echo
 echo "===== SERVICES ====="
 
 for service in \
-    x-ui \
     justvpn \
     nginx
 do
