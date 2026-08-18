@@ -1,0 +1,20 @@
+[Unit]
+Description=JustVPN Bot and Backend API
+After=network-online.target x-ui.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/vpn-bot
+Environment="PATH=/opt/vpn-bot/.venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/opt/vpn-bot/.venv/bin/python -u /opt/vpn-bot/main.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -24,7 +24,7 @@ async def run_bot():
 async def run_api():
     config = uvicorn.Config(
         app,
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=8000,
         log_level="info",
     )

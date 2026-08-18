@@ -29,7 +29,7 @@ def wireguard_link_to_config(link: str) -> str:
     "",
     "[Peer]",
     f"PublicKey = {public_key}",
-    "AllowedIPs = 0.0.0.0/0, ::/0",
+    "AllowedIPs = 0.0.0.0/1, 128.0.0.0/1",
     f"Endpoint = {endpoint}",
     "PersistentKeepalive = 25",
     ])
