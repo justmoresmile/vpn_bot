@@ -707,7 +707,7 @@ class VLESSHandler(ProtocolHandler):
         """
 
         await xui.delete_client(
-            subscription.client_id
+            subscription.client_email,
         )
 
         logger.info(

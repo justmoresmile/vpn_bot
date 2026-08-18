@@ -74,10 +74,6 @@ class XUIClient:
             f"XUI request: {method} {endpoint}"
         )
 
-        logger.info(
-            f"FULL URL: {self.client.base_url.join(endpoint)}"
-        )
-
         try:
 
             response = await self.client.request(
@@ -87,11 +83,7 @@ class XUIClient:
             )
 
             logger.info(
-                f"STATUS: {response.status_code}"
-            )
-
-            logger.info(
-                f"BODY: {response.text[:500]}"
+                f"XUI response: status={response.status_code}"
             )
 
             response.raise_for_status()
@@ -376,26 +368,21 @@ class XUIClient:
 
     async def delete_client(
         self,
-        inbound_id: int,
-        client_uuid: str,
+        email: str,
     ):
         """
-        Удаление клиента из 3x-ui
+        Удаление клиента из 3x-ui по email.
         """
 
         await self._request(
             "POST",
-            "/panel/api/clients/del",
-            json={
-                "id": client_uuid,
-                "inboundId": inbound_id,
-            },
+            f"/panel/api/clients/del/{email}",
         )
 
         self._inbounds_cache = None
 
         logger.info(
-            f"Client deleted {client_uuid}"
+            f"Client deleted {email}"
         )
 
     async def update_client(
@@ -535,16 +522,18 @@ class XUIClient:
             f"/panel/api/clients/subLinks/{sub_id}",
         )
 
-        logger.info(
-            "SUBSCRIPTION LINKS: sub_id={} obj={}",
-            sub_id,
-            data.get("obj"),
-        )
-
-        return data.get(
+        links = data.get(
             "obj",
             [],
         )
+
+        logger.info(
+            "Subscription links received: sub_id={} count={}",
+            sub_id,
+            len(links) if isinstance(links, list) else 0,
+        )
+
+        return links
     
     async def get_client_by_email(
         self,
