@@ -75,3 +75,6 @@ Desktop.ini
 .DS_Store
 # Keep environment template in Git
 !.env.example
+
+# Runtime data
+data/
