@@ -3,14 +3,18 @@ from fastapi import (
     Depends,
     HTTPException,
 )
+
 import qrcode
+
 from io import BytesIO
+
 from fastapi.responses import Response
 
 from app.api.schemas.subscription import (
     ConfigResponse,
     RenewResponse,
     SubscriptionResponse,
+    SubscriptionUsageResponse,
 )
 
 from app.api.dependencies.auth import (
@@ -26,13 +30,14 @@ from app.services.subscription_service import (
 from app.services.vpn_service import (
     vpn_service,
 )
+
 from app.config import settings
+
 
 router = APIRouter(
     prefix="/subscription",
     tags=["Subscription"],
 )
-
 
 
 def check_subscription_owner(
@@ -44,7 +49,6 @@ def check_subscription_owner(
             status_code=403,
             detail="Access denied",
         )
-
 
 
 @router.get(
@@ -62,39 +66,25 @@ async def get_subscription(
         subscription_id
     )
 
-
     if subscription is None:
-
         raise HTTPException(
             status_code=404,
             detail="Subscription not found",
         )
-
 
     check_subscription_owner(
         subscription,
         user,
     )
 
-
     return SubscriptionResponse(
-
         id=subscription.id,
-
         user_id=subscription.user_id,
-
         protocol=subscription.protocol,
-
         status=subscription.status.value,
-
         expires_at=subscription.expires_at,
-
-        config=subscription.config,
-
         client_email=subscription.client_email,
-
     )
-
 
 
 @router.get(
@@ -112,20 +102,16 @@ async def get_config(
         subscription_id
     )
 
-
     if subscription is None:
-
         raise HTTPException(
             status_code=404,
             detail="Subscription not found",
         )
 
-
     check_subscription_owner(
         subscription,
         user,
     )
-
 
     if not subscription.subscription_token:
         raise HTTPException(
@@ -141,7 +127,6 @@ async def get_config(
     return ConfigResponse(
         config=link,
     )
-
 
 
 @router.post(
@@ -160,36 +145,84 @@ async def renew_subscription(
         subscription_id
     )
 
-
     if subscription is None:
-
         raise HTTPException(
             status_code=404,
             detail="Subscription not found",
         )
-
 
     check_subscription_owner(
         subscription,
         user,
     )
 
-
     subscription = await vpn_service.renew(
         subscription_id,
         days,
     )
 
-
     return RenewResponse(
-
         id=subscription.id,
-
         status=subscription.status.value,
-
         expires_at=subscription.expires_at,
-
     )
+
+
+@router.get(
+    "/{subscription_id}/usage",
+    response_model=SubscriptionUsageResponse,
+)
+async def get_subscription_usage(
+    subscription_id: int,
+    user: User = Depends(
+        get_current_user
+    ),
+):
+
+    subscription = subscription_service.get_by_id(
+        subscription_id
+    )
+
+    if subscription is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription not found",
+        )
+
+    check_subscription_owner(
+        subscription,
+        user,
+    )
+
+    server = vpn_service._get_server(
+        subscription
+    )
+
+    xui = await vpn_service._get_xui(
+        server
+    )
+
+    inbound = await xui.get_inbound_by_id(
+        subscription.inbound_id
+    )
+
+    if inbound is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Inbound not found",
+        )
+
+    traffic = await xui.get_client_traffic(
+        inbound=inbound,
+        email=subscription.client_email,
+    )
+
+    return SubscriptionUsageResponse(
+        up=traffic["up"],
+        down=traffic["down"],
+        total=traffic["total"],
+    )
+
 
 @router.get(
     "/{subscription_id}/qr"
@@ -206,7 +239,6 @@ async def get_qr(
     )
 
     if subscription is None:
-
         raise HTTPException(
             status_code=404,
             detail="Subscription not found",
@@ -222,13 +254,14 @@ async def get_qr(
     )
 
     if not config:
-
         raise HTTPException(
             status_code=404,
             detail="Config not found",
         )
 
-    image = qrcode.make(config)
+    image = qrcode.make(
+        config
+    )
 
     buffer = BytesIO()
 
@@ -260,7 +293,6 @@ async def download_file(
     )
 
     if subscription is None:
-
         raise HTTPException(
             status_code=404,
             detail="Subscription not found",
@@ -286,7 +318,7 @@ async def download_file(
 
 
 @router.get(
-    "/{subscription_id}/link",
+"/{subscription_id}/link",
     response_model=ConfigResponse,
 )
 async def get_subscription_link(
@@ -317,16 +349,17 @@ async def get_subscription_link(
             detail="Subscription link is available only for VLESS",
         )
 
-    config = await vpn_service.get_config(
-        subscription_id
-    )
-
-    if not config:
+    if not subscription.subscription_token:
         raise HTTPException(
             status_code=404,
-            detail="Subscription link not found",
+            detail="Subscription token not found",
         )
 
+    link = (
+        f"{settings.public_subscription_base_url.rstrip('/')}"
+        f"/{subscription.subscription_token}"
+    )
+
     return ConfigResponse(
-        config=config,
+        config=link,
     )

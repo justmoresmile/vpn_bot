@@ -29,6 +29,7 @@ from app.services.user_service import (
 
 from app.services.payment_service import payment_service
 from app.api.schemas.payment import PaymentResponse
+from app.services.server_service import server_service
 
 router = APIRouter(
     prefix="/user",
@@ -56,7 +57,6 @@ async def me(
     )
 
 
-
 @router.get(
     "/me/subscriptions",
     response_model=list[SubscriptionShortResponse],
@@ -71,17 +71,38 @@ async def my_subscriptions(
         user.id
     )
 
-    return [
-    SubscriptionShortResponse(
-        id=s.id,
-        protocol=s.protocol,
-        status=s.status.value,
-        expires_at=s.expires_at,
-        client_email=s.client_email,
-        )
-        for s in subscriptions
-    ]
+    result = []
 
+    for s in subscriptions:
+
+        try:
+            server = server_service.get_by_id(
+                s.server_id
+            )
+        except RuntimeError:
+            server = None
+
+        result.append(
+            SubscriptionShortResponse(
+                id=s.id,
+                protocol=s.protocol,
+                status=s.status.value,
+                expires_at=s.expires_at,
+                client_email=s.client_email,
+                server_name=(
+                    server.name
+                    if server
+                    else None
+                ),
+                server_country=(
+                    server.country
+                    if server
+                    else None
+                ),
+            )
+        )
+
+    return result
 
 
 @router.post(

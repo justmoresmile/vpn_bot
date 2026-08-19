@@ -21,6 +21,7 @@ import { useAuth } from './context/AuthContext'
 import {
   getSubscriptions,
   getSubscriptionLink,
+  getSubscriptionUsage,
   type Subscription,
 } from './api/subscription'
 
@@ -118,6 +119,60 @@ function App() {
         subscription.status === 'active',
     ) ?? null
 
+  const [
+    subscriptionUsage,
+    setSubscriptionUsage,
+  ] = useState({
+    up: 0,
+    down: 0,
+    total: 0,
+  })
+
+
+  useEffect(() => {
+
+    async function loadUsage() {
+
+      if (!activeSubscription) {
+
+        setSubscriptionUsage({
+          up: 0,
+          down: 0,
+          total: 0,
+        })
+
+        return
+      }
+
+      try {
+
+        const usage =
+          await getSubscriptionUsage(
+            activeSubscription.id,
+          )
+
+        console.log(
+          'Subscription usage:',
+          usage,
+        )
+
+        setSubscriptionUsage(
+          usage
+        )
+
+      } catch (error) {
+
+        console.error(
+          'Failed to load subscription usage:',
+          error,
+        )
+
+      }
+    }
+
+    loadUsage()
+
+  }, [activeSubscription])
 
   useEffect(() => {
 
@@ -495,14 +550,13 @@ function App() {
               <HomeScreen
                 daysLeft={daysLeft}
                 subscription={activeSubscription}
+                usageTotal={subscriptionUsage.total}
                 onSubscriptionClick={() => {
                   setActiveTab('subscription')
                   setRenewOpen(true)
                 }}
               />
-
             )}
-
 
             {activeTab === 'subscription' && (
 
@@ -554,12 +608,50 @@ function App() {
 function HomeScreen({
   daysLeft,
   subscription,
+  usageTotal,
   onSubscriptionClick,
 }: {
   daysLeft: number
   subscription: Subscription | null
+  usageTotal: number
   onSubscriptionClick: () => void
 }) {
+
+  function formatBytes(
+    bytes: number,
+  ): string {
+
+    if (bytes <= 0) {
+      return '0 Б'
+    }
+
+    const units = [
+      'Б',
+      'КБ',
+      'МБ',
+      'ГБ',
+      'ТБ',
+    ]
+
+    const index = Math.min(
+      Math.floor(
+        Math.log(bytes) /
+        Math.log(1024),
+      ),
+      units.length - 1,
+    )
+
+    const value =
+      bytes /
+      Math.pow(
+        1024,
+        index,
+      )
+
+    return `${value.toFixed(
+      index === 0 ? 0 : 2,
+    )} ${units[index]}`
+  }
 
   return (
 
@@ -664,7 +756,7 @@ function HomeScreen({
 
           <InfoCard
             icon="∞"
-            title="2.4 ГБ"
+            title={formatBytes(usageTotal)}
             label="Использовано"
           />
 
@@ -703,26 +795,22 @@ function HomeScreen({
 
           <div className="usage-row">
 
+            <span className="usage-icon">
+              {subscription?.server_country === 'Finland'
+                ? '🇫🇮'
+                : '🌍'
+              }
+            </span>
+
             <div>
+              <strong>
+                {subscription?.server_name ?? 'Не выбран'}
+              </strong>
 
-              <span className="usage-icon">
-                🇷🇺
-              </span>
-
-              <div>
-
-                <strong>
-                  Россия
-                </strong>
-
-                <small>
-                  Текущий сервер
-                </small>
-
-              </div>
-
+              <small>
+                {subscription?.server_country ?? 'Текущий сервер'}
+              </small>
             </div>
-
           </div>
 
 

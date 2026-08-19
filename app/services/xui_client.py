@@ -554,6 +554,42 @@ class XUIClient:
 
         return None
     
+    async def get_client_traffic(
+        self,
+        inbound: Inbound,
+        email: str,
+    ) -> dict:
+
+        stats = inbound.raw.get(
+            "clientStats",
+            [],
+        )
+
+        for item in stats:
+
+            if item.get("email") == email:
+
+                up = int(
+                    item.get("up", 0) or 0
+                )
+
+                down = int(
+                    item.get("down", 0) or 0
+                )
+
+                return {
+                    "up": up,
+                    "down": down,
+                    "total": up + down,
+                }
+
+        return {
+            "up": 0,
+            "down": 0,
+            "total": 0,
+        }
+
+
     async def get_client_link(
         self,
         sub_id: str,

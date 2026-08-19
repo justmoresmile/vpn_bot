@@ -10,6 +10,8 @@ export type Subscription = {
     status: string
     expires_at: string
     client_email: string | null
+    server_name: string | null
+    server_country: string | null
 }
 
 
@@ -103,5 +105,21 @@ export async function downloadSubscriptionFile(
 
     return apiBlobRequest(
         `/subscription/${subscriptionId}/file`,
+    )
+}
+
+export type SubscriptionUsage = {
+    up: number
+    down: number
+    total: number
+}
+
+
+export async function getSubscriptionUsage(
+    subscriptionId: number,
+): Promise<SubscriptionUsage> {
+
+    return apiRequest<SubscriptionUsage>(
+        `/subscription/${subscriptionId}/usage`,
     )
 }
