@@ -56,3 +56,32 @@ class SubscriptionUsageResponse(BaseModel):
     down: int
 
     total: int
+
+class SubscriptionDeviceResponse(BaseModel):
+
+    id: int
+
+    model: str | None = None
+
+    os: str | None = None
+
+    os_version: str | None = None
+
+    client_app: str | None = None
+
+    client_version: str | None = None
+
+    is_active: bool
+
+    last_seen_at: datetime
+
+
+class SubscriptionDevicesResponse(BaseModel):
+
+    count: int
+
+    limit: int
+
+    devices: list[
+        SubscriptionDeviceResponse
+    ]

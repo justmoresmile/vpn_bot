@@ -15,6 +15,11 @@ from app.api.schemas.subscription import (
     RenewResponse,
     SubscriptionResponse,
     SubscriptionUsageResponse,
+    SubscriptionDeviceResponse,
+    SubscriptionDevicesResponse,
+)
+from app.repositories.device_repository import (
+    device_repo,
 )
 
 from app.api.dependencies.auth import (
@@ -32,6 +37,7 @@ from app.services.vpn_service import (
 )
 
 from app.config import settings
+
 
 
 router = APIRouter(
@@ -318,18 +324,20 @@ async def download_file(
 
 
 @router.get(
-"/{subscription_id}/link",
-    response_model=ConfigResponse,
+"/{subscription_id}/devices",
+    response_model=SubscriptionDevicesResponse,
 )
-async def get_subscription_link(
+async def get_subscription_devices(
     subscription_id: int,
     user: User = Depends(
         get_current_user
     ),
 ):
 
-    subscription = subscription_service.get_by_id(
-        subscription_id
+    subscription = (
+        subscription_service.get_by_id(
+            subscription_id
+        )
     )
 
     if subscription is None:
@@ -343,22 +351,132 @@ async def get_subscription_link(
         user,
     )
 
+    devices = (
+        device_repo.get_by_subscription(
+            subscription.id,
+            active_only=True,
+        )
+    )
+
+    result = []
+
+    for device in devices:
+
+        clients = device_repo.get_clients(
+            device.id
+        )
+
+        primary_client = (
+            clients[0]
+            if clients
+            else None
+        )
+
+        result.append(
+            SubscriptionDeviceResponse(
+                id=device.id,
+                model=(
+                    device.device_name
+                    or device.device_model
+                ),
+                os=device.device_os,
+                os_version=device.os_version,
+                client_app=(
+                    primary_client.client_app
+                    if primary_client
+                    else None
+                ),
+                client_version=(
+                    primary_client.client_version
+                    if primary_client
+                    else None
+                ),
+                is_active=device.is_active,
+                last_seen_at=device.last_seen_at,
+            )
+        )
+
+    return SubscriptionDevicesResponse(
+        count=len(devices),
+        limit=subscription.device_limit,
+        devices=result,
+    )
+
+
+@router.get(
+"/{subscription_id}/link",
+    response_model=ConfigResponse,
+)
+async def get_subscription_link(
+    subscription_id: int,
+    user: User = Depends(
+        get_current_user
+    ),
+):
+
+    subscription = (
+        subscription_service.get_by_id(
+            subscription_id
+        )
+    )
+
+    if subscription is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription not found",
+        )
+
+    check_subscription_owner(
+        subscription,
+        user,
+    )
+
     if subscription.protocol != "vless":
+
         raise HTTPException(
             status_code=400,
             detail="Subscription link is available only for VLESS",
         )
 
     if not subscription.subscription_token:
+
         raise HTTPException(
             status_code=404,
             detail="Subscription token not found",
         )
 
-    link = (
-        f"{settings.public_subscription_base_url.rstrip('/')}"
-        f"/{subscription.subscription_token}"
+    devices = (
+        device_repo.get_by_subscription(
+            subscription.id,
+            active_only=True,
+        )
     )
+
+    # Пока у пользователя есть один физический device slot —
+    # возвращаем его device-specific ссылку.
+    #
+    # Позже, когда появится "+ Добавить устройство",
+    # Mini App сможет выбирать конкретный device_id.
+    if devices:
+
+        device = devices[0]
+
+        link = (
+            f"{settings.public_subscription_base_url.rstrip('/')}"
+            f"/{subscription.subscription_token}"
+            f"/{device.device_token}"
+        )
+
+    else:
+
+        # Для совершенно новой подписки пока оставляем
+        # общий URL — первый совместимый клиент создаст
+        # первый физический device slot.
+        link = (
+            f"{settings.public_subscription_base_url.rstrip('/')}"
+            f"/{subscription.subscription_token}"
+        )
 
     return ConfigResponse(
         config=link,

@@ -123,3 +123,28 @@ export async function getSubscriptionUsage(
         `/subscription/${subscriptionId}/usage`,
     )
 }
+
+export type SubscriptionDevice = {
+    id: number
+    model: string | null
+    os: string | null
+    os_version: string | null
+    client_app: string | null
+    client_version: string | null
+    is_active: boolean
+    last_seen_at: string
+}
+
+export type SubscriptionDevices = {
+    count: number
+    limit: number
+    devices: SubscriptionDevice[]
+}
+
+export async function getSubscriptionDevices(
+    subscriptionId: number,
+): Promise<SubscriptionDevices> {
+    return apiRequest<SubscriptionDevices>(
+        `/subscription/${subscriptionId}/devices`,
+    )
+}

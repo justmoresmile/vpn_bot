@@ -8,7 +8,9 @@ from app.domain.subscription import Subscription
 class SubscriptionRepository:
 
     @staticmethod
-    def _to_entity(row) -> Subscription:
+    def _to_entity(
+        row,
+    ) -> Subscription:
 
         return Subscription(
             id=row["id"],
@@ -32,6 +34,11 @@ class SubscriptionRepository:
             status=SubscriptionStatus(
                 row["status"]
             ),
+            device_limit=(
+                row["device_limit"]
+                if "device_limit" in row.keys()
+                else 2
+            ),
             created_at=datetime.fromtimestamp(
                 row["created_at"]
             ),
@@ -39,8 +46,6 @@ class SubscriptionRepository:
                 row["expires_at"]
             ),
         )
-
-
 
     @staticmethod
     def create(
@@ -61,10 +66,11 @@ class SubscriptionRepository:
                 subscription_token,
                 config,
                 status,
+                device_limit,
                 created_at,
                 expires_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 subscription.user_id,
@@ -77,8 +83,13 @@ class SubscriptionRepository:
                 subscription.subscription_token,
                 subscription.config,
                 subscription.status,
-                int(subscription.created_at.timestamp()),
-                int(subscription.expires_at.timestamp()),
+                subscription.device_limit,
+                int(
+                    subscription.created_at.timestamp()
+                ),
+                int(
+                    subscription.expires_at.timestamp()
+                ),
             ),
         )
 
@@ -105,7 +116,9 @@ class SubscriptionRepository:
             FROM subscriptions
             WHERE id = ?
             """,
-            (subscription_id,),
+            (
+                subscription_id,
+            ),
         )
 
         if row is None:
@@ -135,10 +148,11 @@ class SubscriptionRepository:
         )
 
         return [
-            SubscriptionRepository._to_entity(row)
+            SubscriptionRepository._to_entity(
+                row
+            )
             for row in rows
         ]
-
 
     @staticmethod
     def get_active_by_user(
@@ -193,8 +207,9 @@ class SubscriptionRepository:
         if row is None:
             return None
 
-        return SubscriptionRepository._to_entity(row)
-
+        return SubscriptionRepository._to_entity(
+            row
+        )
 
     @staticmethod
     def get_active(
@@ -213,10 +228,11 @@ class SubscriptionRepository:
         )
 
         return [
-            SubscriptionRepository._to_entity(row)
+            SubscriptionRepository._to_entity(
+                row
+            )
             for row in rows
         ]
-
 
     @staticmethod
     def get_latest_by_user(
@@ -237,11 +253,14 @@ class SubscriptionRepository:
                 SubscriptionStatus.DELETED,
             ),
         )
-        if row is None:
-              return None
 
-        return SubscriptionRepository._to_entity(row)
-        
+        if row is None:
+            return None
+
+        return SubscriptionRepository._to_entity(
+            row
+        )
+
     @staticmethod
     def get_expired_active(
     ) -> list[Subscription]:
@@ -264,12 +283,11 @@ class SubscriptionRepository:
         )
 
         return [
-            SubscriptionRepository._to_entity(row)
+            SubscriptionRepository._to_entity(
+                row
+            )
             for row in rows
         ]
-
-
-
 
     @staticmethod
     def get_expiring(
@@ -281,14 +299,9 @@ class SubscriptionRepository:
         )
 
         future = int(
-            (
-                datetime.now()
-                .timestamp()
-                +
-                days * 86400
-            )
+            datetime.now().timestamp()
+            + days * 86400
         )
-
 
         rows = db.fetchall(
             """
@@ -305,13 +318,12 @@ class SubscriptionRepository:
             ),
         )
 
-
         return [
-            SubscriptionRepository._to_entity(row)
+            SubscriptionRepository._to_entity(
+                row
+            )
             for row in rows
         ]
-
-
 
     @staticmethod
     def update(
@@ -322,17 +334,18 @@ class SubscriptionRepository:
             """
             UPDATE subscriptions
             SET
-                protocol=?,
-                server_id=?,
-                inbound_id=?,
-                client_uuid=?,
-                client_email=?,
-                sub_id=?,
-                subscription_token=?,
-                config=?,
-                status=?,
-                expires_at=?               
-            WHERE id=?
+                protocol = ?,
+                server_id = ?,
+                inbound_id = ?,
+                client_uuid = ?,
+                client_email = ?,
+                sub_id = ?,
+                subscription_token = ?,
+                config = ?,
+                status = ?,
+                device_limit = ?,
+                expires_at = ?
+            WHERE id = ?
             """,
             (
                 subscription.protocol,
@@ -344,11 +357,13 @@ class SubscriptionRepository:
                 subscription.subscription_token,
                 subscription.config,
                 subscription.status,
-                int(subscription.expires_at.timestamp()),
+                subscription.device_limit,
+                int(
+                    subscription.expires_at.timestamp()
+                ),
                 subscription.id,
             ),
         )
-
 
     @staticmethod
     def delete(
@@ -366,7 +381,6 @@ class SubscriptionRepository:
                 subscription_id,
             ),
         )
-
 
     @staticmethod
     def get_all(
@@ -401,10 +415,11 @@ class SubscriptionRepository:
             )
 
         return [
-            SubscriptionRepository._to_entity(row)
+            SubscriptionRepository._to_entity(
+                row
+            )
             for row in rows
         ]
-
 
     @staticmethod
     def count() -> int:
@@ -417,7 +432,6 @@ class SubscriptionRepository:
         )
 
         return row["total"]
-
 
     @staticmethod
     def count_active() -> int:
@@ -435,7 +449,6 @@ class SubscriptionRepository:
 
         return row["total"]
 
-
     @staticmethod
     def count_expired() -> int:
 
@@ -451,9 +464,6 @@ class SubscriptionRepository:
         )
 
         return row["total"]
-
-
-
 
     @staticmethod
     def count_active_by_server(
@@ -475,9 +485,6 @@ class SubscriptionRepository:
 
         return row["total"]
 
-
-
-
     @staticmethod
     def clear_notifications(
         subscription_id: int,
@@ -493,14 +500,15 @@ class SubscriptionRepository:
             ),
         )
 
-
     @staticmethod
     def get_admin_subscriptions(
         page: int = 1,
         limit: int = 20,
     ) -> tuple[list[Subscription], int]:
 
-        offset = (page - 1) * limit
+        offset = (
+            page - 1
+        ) * limit
 
         rows = db.fetchall(
             """
@@ -517,7 +525,9 @@ class SubscriptionRepository:
         )
 
         subscriptions = [
-            SubscriptionRepository._to_entity(row)
+            SubscriptionRepository._to_entity(
+                row
+            )
             for row in rows
         ]
 
@@ -528,14 +538,15 @@ class SubscriptionRepository:
             """
         )
 
-        return subscriptions, row["total"]
-
-
+        return (
+            subscriptions,
+            row["total"],
+        )
 
     @staticmethod
     def get_by_server(
         server_id: int,
-    ):
+    ) -> list[Subscription]:
 
         rows = db.fetchall(
             """
@@ -548,13 +559,12 @@ class SubscriptionRepository:
             ),
         )
 
-
         return [
-            SubscriptionRepository._to_entity(row)
+            SubscriptionRepository._to_entity(
+                row
+            )
             for row in rows
         ]
-
-
 
     def count_by_server(
         self,
@@ -567,7 +577,9 @@ class SubscriptionRepository:
             FROM subscriptions
             WHERE server_id = ?
             """,
-            (server_id,),
+            (
+                server_id,
+            ),
         )
 
         return row[0]
@@ -583,12 +595,17 @@ class SubscriptionRepository:
             FROM subscriptions
             WHERE subscription_token = ?
             """,
-            (token,),
+            (
+                token,
+            ),
         )
 
         if row is None:
             return None
 
-        return SubscriptionRepository._to_entity(row)
+        return SubscriptionRepository._to_entity(
+            row
+        )
+
 
 subscription_repo = SubscriptionRepository()

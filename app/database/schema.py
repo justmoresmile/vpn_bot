@@ -85,6 +85,8 @@ def create_tables():
 
             status TEXT NOT NULL,
 
+            device_limit INTEGER NOT NULL DEFAULT 2,
+
             created_at INTEGER NOT NULL,
 
             expires_at INTEGER NOT NULL,
@@ -96,6 +98,47 @@ def create_tables():
                 REFERENCES servers(id)
         )
     """)
+
+        # =========================
+    # DEVICES
+    # =========================
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS devices
+        (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            subscription_id INTEGER NOT NULL,
+
+            hwid TEXT NOT NULL,
+
+            device_model TEXT,
+
+            device_os TEXT,
+
+            os_version TEXT,
+
+            client_app TEXT,
+
+            client_version TEXT,
+
+            is_active INTEGER NOT NULL DEFAULT 1,
+
+            first_seen_at INTEGER NOT NULL,
+
+            last_seen_at INTEGER NOT NULL,
+
+            UNIQUE(
+                subscription_id,
+                hwid
+            ),
+
+            FOREIGN KEY(subscription_id)
+                REFERENCES subscriptions(id)
+        )
+    """)
+
+
 
     # =========================
     # PAYMENTS
@@ -166,5 +209,7 @@ def create_tables():
 
     
     """)
+
+
 
  

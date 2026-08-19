@@ -23,6 +23,7 @@ import {
   getSubscriptionLink,
   getSubscriptionUsage,
   type Subscription,
+  getSubscriptionDevices,
 } from './api/subscription'
 
 import {
@@ -128,6 +129,56 @@ function App() {
     total: 0,
   })
 
+  const [
+    subscriptionDevices,
+    setSubscriptionDevices,
+  ] = useState({
+    count: 0,
+    limit: 2,
+    devices: [],
+  })
+
+  useEffect(() => {
+    async function loadDevices() {
+
+      if (!activeSubscription) {
+        setSubscriptionDevices({
+          count: 0,
+          limit: 2,
+          devices: [],
+        })
+
+        return
+      }
+
+      try {
+
+        const devices =
+          await getSubscriptionDevices(
+            activeSubscription.id,
+          )
+
+        console.log(
+          'Subscription devices:',
+          devices,
+        )
+
+        setSubscriptionDevices(
+          devices
+        )
+
+      } catch (error) {
+
+        console.error(
+          'Failed to load subscription devices:',
+          error,
+        )
+      }
+    }
+
+    loadDevices()
+
+  }, [activeSubscription])
 
   useEffect(() => {
 
@@ -551,9 +602,30 @@ function App() {
                 daysLeft={daysLeft}
                 subscription={activeSubscription}
                 usageTotal={subscriptionUsage.total}
+                subscriptionDevices={subscriptionDevices}
+
                 onSubscriptionClick={() => {
                   setActiveTab('subscription')
                   setRenewOpen(true)
+                }}
+
+                onDevicesClick={() => {
+
+                  setActiveTab('subscription')
+                  setRenewOpen(false)
+
+                  setTimeout(() => {
+
+                    document
+                      .getElementById(
+                        'subscription-devices'
+                      )
+                      ?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                      })
+
+                  }, 100)
                 }}
               />
             )}
@@ -564,6 +636,7 @@ function App() {
                 subscription={activeSubscription}
                 renewOpen={renewOpen}
                 setRenewOpen={setRenewOpen}
+                subscriptionDevices={subscriptionDevices}
               />
 
             )}
@@ -609,14 +682,23 @@ function HomeScreen({
   daysLeft,
   subscription,
   usageTotal,
+  subscriptionDevices,
   onSubscriptionClick,
+  onDevicesClick,
+
 }: {
   daysLeft: number
   subscription: Subscription | null
   usageTotal: number
-  onSubscriptionClick: () => void
-}) {
 
+  subscriptionDevices: {
+    count: number
+    limit: number
+  }
+
+  onSubscriptionClick: () => void
+  onDevicesClick: () => void
+}) {
   function formatBytes(
     bytes: number,
   ): string {
@@ -762,10 +844,10 @@ function HomeScreen({
 
           <InfoCard
             icon="📱"
-            title="0 / 2"
+            title={`${subscriptionDevices.count} / ${subscriptionDevices.limit}`}
             label="Устройства"
+            onClick={onDevicesClick}
           />
-
         </div>
 
       </section>
@@ -895,15 +977,38 @@ function InfoCard({
   icon,
   title,
   label,
+  onClick,
 }: {
   icon: string
   title: string
   label: string
+  onClick?: () => void
 }) {
 
   return (
 
-    <div className="info-card">
+    <div
+      className={
+        onClick
+          ? 'info-card info-card-clickable'
+          : 'info-card'
+      }
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(event) => {
+        if (
+          onClick &&
+          (
+            event.key === 'Enter' ||
+            event.key === ' '
+          )
+        ) {
+          event.preventDefault()
+          onClick()
+        }
+      }}
+    >
 
       <div className="info-icon">
         {icon}
@@ -922,17 +1027,25 @@ function InfoCard({
 }
 
 
-
 function SubscriptionScreen({
   subscription,
   renewOpen,
   setRenewOpen,
+  subscriptionDevices,
 }: {
   subscription: Subscription | null
   renewOpen: boolean
   setRenewOpen: React.Dispatch<
     React.SetStateAction<boolean>
   >
+  subscriptionDevices: {
+    count: number
+    limit: number
+    devices: {
+      id: number
+      model: string | null
+    }[]
+  }
 }) {
 
   const [
@@ -2067,28 +2180,68 @@ function SubscriptionScreen({
 
 
 
-      <section className="section">
+      <section
+        id="subscription-devices"
+        className="section"
+      >
 
-        <div className="section-title">
-          Мои устройства
-        </div>
+        <div className="devices-header">
 
-
-        <div className="empty-card">
-
-          <div className="empty-icon">
-            📱
+          <div className="section-title">
+            Мои устройства
           </div>
 
-          <strong>
-            Нет подключённых устройств
-          </strong>
-
-          <span>
-            Подключённые устройства появятся здесь
-          </span>
+          <div className="devices-count">
+            {subscriptionDevices.count} / {subscriptionDevices.limit}
+          </div>
 
         </div>
+
+        {subscriptionDevices.devices.length > 0 ? (
+
+          <div className="devices-list">
+
+            {subscriptionDevices.devices.map(
+              (device) => {
+
+                const deviceName =
+                  device.model
+                    ?.replace(
+                      /^(\S+)\s+\1\s+/i,
+                      '$1 ',
+                    )
+                  ?? 'Устройство'
+
+                return (
+
+                  <div
+                    key={device.id}
+                    className="device-card"
+                  >
+
+                    <div className="device-card-icon">
+                      📱
+                    </div>
+
+                    <div className="device-card-name">
+                      {deviceName}
+                    </div>
+
+                  </div>
+
+                )
+              },
+            )}
+
+          </div>
+
+        ) : (
+
+          <div className="device-empty">
+            Нет подключённых устройств
+          </div>
+
+        )}
 
       </section>
 

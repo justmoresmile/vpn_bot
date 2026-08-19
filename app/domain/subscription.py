@@ -23,10 +23,14 @@ class Subscription:
     # Используется только VLESS.
     # Для WireGuard остается None.
     sub_id: str | None = None
-   
+
     config: str = ""
 
     status: SubscriptionStatus = SubscriptionStatus.ACTIVE
+
+    # Максимальное количество устройств
+    # для этой конкретной подписки.
+    device_limit: int = 2
 
     created_at: datetime | None = None
     expires_at: datetime | None = None
