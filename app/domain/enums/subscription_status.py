@@ -8,3 +8,5 @@ class SubscriptionStatus(StrEnum):
     DISABLED = "disabled"
 
     EXPIRED = "expired"
+
+    DELETED = "deleted"

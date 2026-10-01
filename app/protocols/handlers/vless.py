@@ -11,7 +11,7 @@ from loguru import logger
 
 from app.config import settings
 from app.domain.inbound import Inbound
-from app.domain.legacy_enums import SubscriptionStatus
+from app.domain.enums.subscription_status import SubscriptionStatus
 from app.domain.subscription import Subscription
 from app.protocols.handlers.base import ProtocolHandler
 from app.utils.client_email import generate_client_email

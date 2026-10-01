@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app.database.database import db
-from app.domain.legacy_enums import SubscriptionStatus
+from app.domain.enums.subscription_status import SubscriptionStatus
 from app.domain.subscription import Subscription
 
 

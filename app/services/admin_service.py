@@ -18,7 +18,7 @@ from app.repositories.subscription_repository import subscription_repo
 from datetime import datetime
 from app.repositories.server_repository import server_repo
 from app.repositories.user_repository import users_repo
-from app.domain.legacy_enums import SubscriptionStatus
+from app.domain.enums.subscription_status import SubscriptionStatus
 
 
 

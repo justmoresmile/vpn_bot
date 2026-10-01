@@ -1,13 +1,6 @@
 from enum import StrEnum
 
 
-class SubscriptionStatus(StrEnum):
-    ACTIVE = "active"
-    DISABLED = "disabled"
-    EXPIRED = "expired"
-    DELETED = "deleted"
-
-
 class PaymentStatus(StrEnum):
     PENDING = "pending"
     PAID = "paid"

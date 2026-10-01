@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from loguru import logger
 
 from app.domain.subscription import Subscription
-from app.domain.legacy_enums import SubscriptionStatus
+from app.domain.enums.subscription_status import SubscriptionStatus
 from app.protocols.handlers.base import ProtocolHandler
 from app.repositories.subscription_repository import subscription_repo
 from app.repositories.subscription_notification_repository import (
