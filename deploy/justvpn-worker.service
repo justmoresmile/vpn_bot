@@ -1,0 +1,21 @@
+[Unit]
+Description=JustVPN Background Worker
+After=network.target justvpn-backend.service
+Wants=justvpn-backend.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/vpn_bot
+EnvironmentFile=/opt/vpn_bot/.env
+
+ExecStart=/opt/vpn_bot/.venv/bin/python3 /opt/vpn_bot/worker.py
+
+Restart=always
+RestartSec=3
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+[Unit]
+Description=JustVPN Backend
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/vpn_bot
+EnvironmentFile=/opt/vpn_bot/.env
+
+ExecStart=/opt/vpn_bot/.venv/bin/uvicorn app.api.server:app --host 127.0.0.1 --port 8000
+
+Restart=always
+RestartSec=3
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-import asyncio
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routers import router
 from app.bootstrap import init_ssl
 
-from app.tasks.subscription_task import subscription_task
 from app.services.vpn_service import vpn_service
 
 from app.api.routes.public_subscription import (
@@ -22,23 +20,10 @@ async def lifespan(
     app: FastAPI,
 ):
 
-    task = asyncio.create_task(
-        subscription_task()
-    )
-
     try:
         yield
 
     finally:
-
-        task.cancel()
-
-        try:
-            await task
-
-        except asyncio.CancelledError:
-            pass
-
         await vpn_service.close()
 
 

@@ -10,9 +10,7 @@ from app.domain.enums.payment_status import PaymentStatus
 
 from app.services.vpn_service import vpn_service
 from app.services.xui_client import XUIClient
-from app.services.broadcast_service import BroadcastService
 
-from app.bot.bot_instance import bot
 from app.repositories.user_repository import users_repo
 from app.repositories.subscription_repository import subscription_repo
 from datetime import datetime
@@ -198,6 +196,11 @@ class AdminService:
         target: str,
         message: str,
     ):
+
+        from app.services.broadcast_service import (
+            BroadcastService,
+        )
+        from app.bot.bot_instance import bot
 
         service = BroadcastService(
             bot

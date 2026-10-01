@@ -10,10 +10,6 @@ from app.repositories.user_repository import (
     users_repo,
 )
 
-from app.bot.services.telegram_service import (
-    telegram_service,
-)
-
 from app.database.database import db
 
 
@@ -21,6 +17,10 @@ class SubscriptionReminderService:
 
 
     async def run(self):
+
+        from app.bot.services.telegram_service import (
+            telegram_service,
+        )
 
         subscriptions = (
             subscription_repo.get_active()
