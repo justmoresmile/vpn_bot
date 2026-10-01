@@ -10,26 +10,29 @@ class Subscription:
     id: int | None
 
     user_id: int
-    server_id: int
     protocol: str
-    inbound_id: int
 
-    client_id: str
-    client_email: str
+    # VPN provider
+    provider: str = "remnawave"
 
-    # Короткий токен нашей подписки
+    # Legacy / provider-specific fields.
+    # Для Remnawave они могут быть None.
+    server_id: int | None = None
+    inbound_id: int | None = None
+
+    client_id: str | None = None
+    client_email: str | None = None
+
     subscription_token: str | None = None
 
-    # Используется только VLESS.
-    # Для WireGuard остается None.
     sub_id: str | None = None
 
     config: str = ""
 
-    status: SubscriptionStatus = SubscriptionStatus.ACTIVE
+    status: SubscriptionStatus = (
+        SubscriptionStatus.ACTIVE
+    )
 
-    # Максимальное количество устройств
-    # для этой конкретной подписки.
     device_limit: int = 2
 
     created_at: datetime | None = None

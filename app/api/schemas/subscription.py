@@ -15,7 +15,7 @@ class SubscriptionResponse(BaseModel):
 
     expires_at: datetime
 
-    client_email: str
+    client_email: str | None = None
 
 
 class SubscriptionShortResponse(BaseModel):
@@ -59,7 +59,7 @@ class SubscriptionUsageResponse(BaseModel):
 
 class SubscriptionDeviceResponse(BaseModel):
 
-    id: int
+    id: str
 
     model: str | None = None
 

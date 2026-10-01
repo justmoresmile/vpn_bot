@@ -69,9 +69,37 @@ class Settings:
     jwt_algorithm: str
     jwt_expire_days: int
 
+
+
+
+      # ------------------------------------------------------------------
+    # SMTP
+    # ------------------------------------------------------------------
+
+    smtp_host: str
+    smtp_port: int
+    smtp_user: str
+    smtp_password: str
+    smtp_from: str
+    smtp_ssl: bool
+    smtp_starttls: bool
+
+    # ------------------------------------------------------------------
+    # Remnawave
+    # ------------------------------------------------------------------
+
+    remnawave_api_url: str
+    remnawave_username: str
+    remnawave_password: str
+    remnawave_api_token: str
+
     # ------------------------------------------------------------------
     # Backend API
     # ------------------------------------------------------------------
+
+
+
+
 
     backend_api_url: str
     backend_api_key: str
@@ -220,6 +248,67 @@ settings = Settings(
             "JWT_EXPIRE_DAYS",
             "30",
         )
+    ),
+
+
+
+
+        # ------------------------------------------------------------------
+    # SMTP
+    # ------------------------------------------------------------------
+
+    smtp_host=require_env(
+        "SMTP_HOST"
+    ),
+
+    smtp_port=int(
+        os.getenv(
+            "SMTP_PORT",
+            "465",
+        )
+    ),
+
+    smtp_user=require_env(
+        "SMTP_USER"
+    ),
+
+    smtp_password=require_env(
+        "SMTP_PASSWORD"
+    ),
+
+    smtp_from=os.getenv(
+        "SMTP_FROM",
+        "JustVPN",
+    ),
+
+    smtp_ssl=os.getenv(
+        "SMTP_SSL",
+        "true",
+    ).lower() == "true",
+
+    smtp_starttls=os.getenv(
+        "SMTP_STARTTLS",
+        "false",
+    ).lower() == "true",
+
+    # ------------------------------------------------------------------
+    # Remnawave
+    # ------------------------------------------------------------------
+
+    remnawave_api_url=require_env(
+        "REMNAWAVE_API_URL"
+    ),
+
+    remnawave_username=require_env(
+        "REMNAWAVE_USERNAME"
+    ),
+
+    remnawave_password=require_env(
+        "REMNAWAVE_PASSWORD"
+    ),
+
+    remnawave_api_token=require_env(
+        "REMNAWAVE_API_TOKEN"
     ),
 
     # ------------------------------------------------------------------

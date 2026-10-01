@@ -14,6 +14,8 @@ def create_tables():
 
             telegram_id INTEGER UNIQUE,
 
+            email TEXT,
+
             username TEXT,
 
             first_name TEXT,
@@ -24,8 +26,92 @@ def create_tables():
 
             api_key TEXT,
 
+            vpn_provider TEXT,
+
+            provider_user_id INTEGER,
+
+            provider_username TEXT,
+
             created_at INTEGER DEFAULT (strftime('%s','now'))
         )
+    """)
+
+    # =========================
+    # USERS MIGRATIONS
+    # =========================
+
+    user_columns = {
+        row["name"]
+        for row in db.fetchall(
+            "PRAGMA table_info(users)"
+        )
+    }
+
+    if "email" not in user_columns:
+        db.execute("""
+            ALTER TABLE users
+            ADD COLUMN email TEXT
+        """)
+
+    if "vpn_provider" not in user_columns:
+        db.execute("""
+            ALTER TABLE users
+            ADD COLUMN vpn_provider TEXT
+        """)
+
+    if "provider_user_id" not in user_columns:
+        db.execute("""
+            ALTER TABLE users
+            ADD COLUMN provider_user_id INTEGER
+        """)
+
+    if "provider_username" not in user_columns:
+        db.execute("""
+            ALTER TABLE users
+            ADD COLUMN provider_username TEXT
+        """)
+
+    db.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        idx_users_email_unique
+        ON users(LOWER(email))
+        WHERE email IS NOT NULL
+    """)
+
+    # =========================
+    # EMAIL AUTH CODES
+    # =========================
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS email_auth_codes
+        (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            email TEXT NOT NULL,
+
+            code_hash TEXT NOT NULL,
+
+            expires_at INTEGER NOT NULL,
+
+            attempts INTEGER NOT NULL DEFAULT 0,
+
+            used_at INTEGER,
+
+            created_at INTEGER NOT NULL
+                DEFAULT (strftime('%s','now'))
+        )
+    """)
+
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_email_auth_codes_email
+        ON email_auth_codes(email)
+    """)
+
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_email_auth_codes_expires
+        ON email_auth_codes(expires_at)
     """)
 
     # =========================
@@ -66,30 +152,34 @@ def create_tables():
 
             user_id INTEGER NOT NULL,
 
-            server_id INTEGER NOT NULL,
+            provider TEXT NOT NULL
+                DEFAULT 'remnawave',
 
             protocol TEXT NOT NULL,
 
-            inbound_id INTEGER NOT NULL,
-
-            client_uuid TEXT NOT NULL,
-
-            client_email TEXT NOT NULL,
-
-            sub_id TEXT,
-
-            subscription_token TEXT UNIQUE,
-
-
-            config TEXT NOT NULL,
-
             status TEXT NOT NULL,
 
-            device_limit INTEGER NOT NULL DEFAULT 2,
+            device_limit INTEGER NOT NULL
+                DEFAULT 2,
+
+            subscription_token TEXT UNIQUE,
 
             created_at INTEGER NOT NULL,
 
             expires_at INTEGER NOT NULL,
+
+            server_id INTEGER,
+
+            inbound_id INTEGER,
+
+            client_uuid TEXT,
+
+            client_email TEXT,
+
+            sub_id TEXT,
+
+            config TEXT NOT NULL
+                DEFAULT '',
 
             FOREIGN KEY(user_id)
                 REFERENCES users(id),
@@ -99,7 +189,7 @@ def create_tables():
         )
     """)
 
-        # =========================
+    # =========================
     # DEVICES
     # =========================
 
@@ -137,8 +227,6 @@ def create_tables():
                 REFERENCES subscriptions(id)
         )
     """)
-
-
 
     # =========================
     # PAYMENTS
@@ -206,10 +294,4 @@ def create_tables():
                 expires_at
             )
         )
-
-    
     """)
-
-
-
- 

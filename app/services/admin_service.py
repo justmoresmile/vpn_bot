@@ -738,8 +738,17 @@ class AdminService:
         subscription_id: int,
     ) -> None:
 
-        await vpn_service.disable_subscription(
-            subscription_id,
+        subscription = (
+            subscription_repo.get_by_id(
+                subscription_id
+            )
+        )
+
+        if subscription is None:
+            return
+
+        await vpn_service.delete(
+            subscription
         )
 
 

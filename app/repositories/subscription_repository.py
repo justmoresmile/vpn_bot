@@ -15,8 +15,13 @@ class SubscriptionRepository:
         return Subscription(
             id=row["id"],
             user_id=row["user_id"],
-            server_id=row["server_id"],
             protocol=row["protocol"],
+            provider=(
+                row["provider"]
+                if "provider" in row.keys()
+                else "remnawave"
+            ),
+            server_id=row["server_id"],
             inbound_id=row["inbound_id"],
             client_id=row["client_uuid"],
             client_email=row["client_email"],
@@ -57,6 +62,7 @@ class SubscriptionRepository:
             INSERT INTO subscriptions
             (
                 user_id,
+                provider,
                 server_id,
                 protocol,
                 inbound_id,
@@ -70,10 +76,11 @@ class SubscriptionRepository:
                 created_at,
                 expires_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 subscription.user_id,
+                subscription.provider,
                 subscription.server_id,
                 subscription.protocol,
                 subscription.inbound_id,
@@ -334,6 +341,7 @@ class SubscriptionRepository:
             """
             UPDATE subscriptions
             SET
+                provider = ?,
                 protocol = ?,
                 server_id = ?,
                 inbound_id = ?,
@@ -348,6 +356,7 @@ class SubscriptionRepository:
             WHERE id = ?
             """,
             (
+                subscription.provider,
                 subscription.protocol,
                 subscription.server_id,
                 subscription.inbound_id,

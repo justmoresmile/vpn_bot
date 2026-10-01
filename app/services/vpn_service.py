@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from loguru import logger
 
 from app.domain.subscription import Subscription
@@ -11,6 +13,9 @@ from app.services.server_service import server_service
 from app.services.xui_client import XUIClient
 from app.services.subscription_token import (
     generate_subscription_token,
+)
+from app.services.remnawave_service import (
+    remnawave_service,
 )
 
 class VPNService:
@@ -99,39 +104,59 @@ class VPNService:
 
         protocol = protocol.lower().strip()
 
-        if protocol not in ProtocolHandler.protocols():
+        if protocol != "vless":
             raise ValueError(
                 f"Unsupported VPN protocol: {protocol}"
             )
 
-        server = server_service.get_best_server()
-
-        if server is None:
-            raise RuntimeError(
-                "No available VPN server found."
+        if days <= 0:
+            raise ValueError(
+                "days must be greater than 0"
             )
 
-        handler = ProtocolHandler.create(
-            protocol=protocol,
-            server=server,
+        now = datetime.now(
+            timezone.utc
         )
 
-        xui = await self._get_xui(
-            server
+        expires_at = (
+            now
+            + timedelta(
+                days=days
+            )
         )
 
-        subscription = await handler.create_subscription(
-            xui=xui,
-            server=server,
+        provider_user = (
+            remnawave_service.ensure_user(
+                justvpn_user_id=user_id,
+                expire_at=expires_at,
+                hwid_device_limit=2,
+            )
+        )
+
+        subscription = Subscription(
+            id=None,
             user_id=user_id,
-            days=days,
-        )
-
-        subscription.server_id = server.id
-        subscription.protocol = protocol
-
-        subscription.subscription_token = (
-            generate_subscription_token()
+            provider="remnawave",
+            protocol=protocol,
+            server_id=None,
+            inbound_id=None,
+            client_id=(
+                provider_user.get(
+                    "vlessUuid"
+                )
+            ),
+            client_email=None,
+            sub_id=None,
+            subscription_token=(
+                generate_subscription_token()
+            ),
+            config="",
+            status=(
+                SubscriptionStatus.ACTIVE
+            ),
+            device_limit=2,
+            created_at=now,
+            expires_at=expires_at,
         )
 
         created = subscription_repo.create(
@@ -139,12 +164,12 @@ class VPNService:
         )
 
         logger.info(
-            "VPN subscription created "
+            "Remnawave subscription created "
             "user={} subscription={} "
-            "server={} protocol={}",
+            "provider_user={} protocol={}",
             user_id,
             created.id,
-            server.id,
+            provider_user.get("id"),
             protocol,
         )
 
@@ -163,13 +188,36 @@ class VPNService:
 
         protocol = protocol.lower().strip()
 
-        if protocol not in ProtocolHandler.protocols():
+        if protocol != "vless":
             raise ValueError(
                 f"Unsupported VPN protocol: {protocol}"
             )
 
+        existing = (
+            subscription_repo
+            .get_active_by_user(
+                user_id
+            )
+        )
+
+        if existing is not None:
+
+            logger.info(
+                "Active subscription exists, "
+                "renew instead "
+                "user={} subscription={} days={}",
+                user_id,
+                existing.id,
+                days,
+            )
+
+            return await self.renew(
+                subscription_id=existing.id,
+                days=days,
+            )
+
         logger.info(
-            "Creating new subscription "
+            "Creating new Remnawave subscription "
             "user={} protocol={} days={}",
             user_id,
             protocol,
@@ -192,6 +240,11 @@ class VPNService:
         days: int,
     ) -> Subscription:
 
+        if days <= 0:
+            raise ValueError(
+                "days must be greater than 0"
+            )
+
         subscription = (
             subscription_repo.get_by_id(
                 subscription_id
@@ -203,39 +256,60 @@ class VPNService:
                 "Подписка не найдена"
             )
 
-        server = self._get_server(
-            subscription
+        provider_user = (
+            remnawave_service.renew_user(
+                justvpn_user_id=(
+                    subscription.user_id
+                ),
+                days=days,
+            )
         )
 
-        handler = self._get_handler(
-            subscription
+        expire_value = (
+            provider_user.get(
+                "expireAt"
+            )
         )
 
-        xui = await self._get_xui(
-            server
+        if not expire_value:
+            raise RuntimeError(
+                "Remnawave response "
+                "has no expireAt"
+            )
+
+        subscription.expires_at = (
+            datetime.fromisoformat(
+                expire_value.replace(
+                    "Z",
+                    "+00:00",
+                )
+            )
         )
 
-        renewed = await handler.renew(
-            xui=xui,
-            subscription=subscription,
-            days=days,
+        subscription.status = (
+            SubscriptionStatus.ACTIVE
+        )
+
+        subscription.provider = (
+            "remnawave"
         )
 
         subscription_repo.update(
-            renewed
+            subscription
         )
 
         subscription_notification_repo.delete_by_subscription(
-            renewed.id
+            subscription.id
         )
 
         logger.info(
-            "Subscription {} renewed protocol={}",
-            renewed.id,
-            renewed.protocol,
+            "Subscription {} renewed "
+            "via Remnawave days={}",
+            subscription.id,
+            days,
         )
 
-        return renewed
+        return subscription
 
     # ============================================================
     # EXTEND
@@ -272,34 +346,25 @@ class VPNService:
         subscription: Subscription,
     ) -> Subscription:
 
-        server = self._get_server(
-            subscription
+        remnawave_service.disable_user(
+            subscription.user_id
         )
 
-        handler = self._get_handler(
-            subscription
-        )
-
-        xui = await self._get_xui(
-            server
-        )
-
-        disabled = await handler.disable(
-            xui=xui,
-            subscription=subscription,
+        subscription.status = (
+            SubscriptionStatus.DISABLED
         )
 
         subscription_repo.update(
-            disabled
+            subscription
         )
 
         logger.warning(
-            "Subscription {} disabled protocol={}",
-            disabled.id,
-            disabled.protocol,
+            "Subscription {} disabled "
+            "via Remnawave",
+            subscription.id,
         )
 
-        return disabled
+        return subscription
 
     # ============================================================
     # DISABLE BY ID
@@ -341,7 +406,30 @@ class VPNService:
         if subscription is None:
             return None
 
-        return subscription.config
+        # --------------------------------------------------------
+        # REMNAWAVE
+        # --------------------------------------------------------
+
+        if (
+            subscription.provider
+            == "remnawave"
+        ):
+
+            return (
+                remnawave_service
+                .get_subscription_url(
+                    subscription.user_id
+                )
+            )
+
+        # --------------------------------------------------------
+        # LEGACY
+        # --------------------------------------------------------
+
+        if subscription.config:
+            return subscription.config
+
+        return None
 
     # ============================================================
     # GET FILE
@@ -351,6 +439,43 @@ class VPNService:
         self,
         subscription: Subscription,
     ) -> tuple[str, bytes]:
+
+        # --------------------------------------------------------
+        # REMNAWAVE
+        # --------------------------------------------------------
+
+        if (
+            subscription.provider
+            == "remnawave"
+        ):
+
+            url = (
+                remnawave_service
+                .get_subscription_url(
+                    subscription.user_id
+                )
+            )
+
+            if not url:
+                raise RuntimeError(
+                    "Remnawave subscription URL not found"
+                )
+
+            content = (
+                url.strip()
+                + "\n"
+            ).encode(
+                "utf-8"
+            )
+
+            return (
+                "justvpn-subscription.txt",
+                content,
+            )
+
+        # --------------------------------------------------------
+        # LEGACY
+        # --------------------------------------------------------
 
         server = self._get_server(
             subscription
@@ -400,28 +525,9 @@ class VPNService:
         if subscription is None:
             return None
 
-        server = self._get_server(
+        return await self.sync_subscription(
             subscription
         )
-
-        handler = self._get_handler(
-            subscription
-        )
-
-        xui = await self._get_xui(
-            server
-        )
-
-        synced = await handler.sync(
-            xui=xui,
-            subscription=subscription,
-        )
-
-        subscription_repo.update(
-            synced
-        )
-
-        return synced
 
     # ============================================================
     # SYNC
@@ -431,6 +537,138 @@ class VPNService:
         self,
         subscription: Subscription,
     ) -> Subscription:
+
+        # --------------------------------------------------------
+        # REMNAWAVE
+        # --------------------------------------------------------
+
+        if (
+            subscription.provider
+            == "remnawave"
+        ):
+
+            remote = (
+                remnawave_service
+                .get_user(
+                    subscription.user_id
+                )
+            )
+
+            if remote is None:
+
+                logger.warning(
+                    "Remnawave user not found "
+                    "for subscription {} user={}",
+                    subscription.id,
+                    subscription.user_id,
+                )
+
+                return subscription
+
+            # ----------------------------------------------------
+            # EXPIRATION
+            # ----------------------------------------------------
+
+            expire_value = remote.get(
+                "expireAt"
+            )
+
+            if expire_value:
+
+                try:
+                    subscription.expires_at = (
+                        datetime.fromisoformat(
+                            expire_value.replace(
+                                "Z",
+                                "+00:00",
+                            )
+                        )
+                    )
+
+                except (
+                    ValueError,
+                    TypeError,
+                ):
+
+                    logger.warning(
+                        "Invalid Remnawave expireAt "
+                        "subscription={} value={}",
+                        subscription.id,
+                        expire_value,
+                    )
+
+            # ----------------------------------------------------
+            # STATUS
+            # ----------------------------------------------------
+
+            remote_status = str(
+                remote.get(
+                    "status",
+                    "",
+                )
+            ).upper()
+
+            if remote_status == "ACTIVE":
+
+                subscription.status = (
+                    SubscriptionStatus.ACTIVE
+                )
+
+            elif remote_status == "DISABLED":
+
+                subscription.status = (
+                    SubscriptionStatus.DISABLED
+                )
+
+            elif remote_status == "EXPIRED":
+
+                subscription.status = (
+                    SubscriptionStatus.EXPIRED
+                )
+
+            elif remote_status == "LIMITED":
+
+                # Remnawave LIMITED означает,
+                # что доступ фактически ограничен.
+                subscription.status = (
+                    SubscriptionStatus.DISABLED
+                )
+
+            # ----------------------------------------------------
+            # VLESS UUID
+            # ----------------------------------------------------
+
+            vless_uuid = remote.get(
+                "vlessUuid"
+            )
+
+            if vless_uuid:
+                subscription.client_id = str(
+                    vless_uuid
+                )
+
+            subscription.provider = (
+                "remnawave"
+            )
+
+            subscription_repo.update(
+                subscription
+            )
+
+            logger.debug(
+                "Subscription {} synced "
+                "from Remnawave status={} "
+                "expire_at={}",
+                subscription.id,
+                remote_status,
+                subscription.expires_at,
+            )
+
+            return subscription
+
+        # --------------------------------------------------------
+        # LEGACY / OTHER PROVIDERS
+        # --------------------------------------------------------
 
         server = self._get_server(
             subscription
@@ -464,42 +702,58 @@ class VPNService:
         subscription: Subscription,
     ) -> Subscription:
 
+        now = datetime.now(
+            timezone.utc
+        )
+
         if (
-            subscription.status
-            == SubscriptionStatus.EXPIRED
+            subscription.expires_at
+            is not None
+            and subscription.expires_at.tzinfo
+            is None
+        ):
+            expires_at = (
+                subscription.expires_at
+                .replace(
+                    tzinfo=timezone.utc
+                )
+            )
+        else:
+            expires_at = (
+                subscription.expires_at
+            )
+
+        if (
+            expires_at is not None
+            and expires_at <= now
         ):
             raise ValueError(
                 "Подписка истекла"
             )
 
-        server = self._get_server(
-            subscription
+        remnawave_service.enable_user(
+            subscription.user_id
         )
 
-        handler = self._get_handler(
-            subscription
+        subscription.status = (
+            SubscriptionStatus.ACTIVE
         )
 
-        xui = await self._get_xui(
-            server
-        )
-
-        restored = await handler.restore(
-            xui=xui,
-            subscription=subscription,
+        subscription.provider = (
+            "remnawave"
         )
 
         subscription_repo.update(
-            restored
+            subscription
         )
 
         logger.info(
-            "Subscription {} restored protocol={}",
-            restored.id,
-            restored.protocol,
+            "Subscription {} restored "
+            "via Remnawave",
+            subscription.id,
         )
 
-        return restored
+        return subscription
 
     # ============================================================
     # DELETE
@@ -509,6 +763,35 @@ class VPNService:
         self,
         subscription: Subscription,
     ) -> None:
+
+        # --------------------------------------------------------
+        # REMNAWAVE
+        # --------------------------------------------------------
+
+        if (
+            subscription.provider
+            == "remnawave"
+        ):
+
+            remnawave_service.disable_user(
+                subscription.user_id
+            )
+
+            subscription_repo.delete(
+                subscription.id
+            )
+
+            logger.info(
+                "Subscription {} deleted locally "
+                "and Remnawave user disabled",
+                subscription.id,
+            )
+
+            return
+
+        # --------------------------------------------------------
+        # LEGACY
+        # --------------------------------------------------------
 
         server = self._get_server(
             subscription
@@ -525,6 +808,10 @@ class VPNService:
         await handler.delete(
             xui=xui,
             subscription=subscription,
+        )
+
+        subscription_repo.delete(
+            subscription.id
         )
 
         logger.info(

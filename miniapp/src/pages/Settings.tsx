@@ -1,12 +1,19 @@
 import { useTheme } from '../theme/ThemeContext'
 import { themes } from '../theme/themes'
+import { useAuth } from '../context/AuthContext'
+
 import justfastvpnIcon from '../assets/justfastvpn-icon.png'
+
 
 type SettingsProps = {
     onClose: () => void
 }
 
-function Settings({ onClose }: SettingsProps) {
+
+function Settings({
+    onClose,
+}: SettingsProps) {
+
     const {
         theme,
         accent,
@@ -18,10 +25,24 @@ function Settings({ onClose }: SettingsProps) {
         setMode,
     } = useTheme()
 
+    const {
+        logout,
+    } = useAuth()
+
+
+    function handleLogout() {
+
+        logout()
+
+        window.location.reload()
+    }
+
+
     return (
         <div className="settings-page">
 
             <div className="settings-header">
+
                 <button
                     className="back-button"
                     onClick={onClose}
@@ -30,6 +51,7 @@ function Settings({ onClose }: SettingsProps) {
                 </button>
 
                 <div>
+
                     <div className="settings-title">
                         Оформление
                     </div>
@@ -37,30 +59,41 @@ function Settings({ onClose }: SettingsProps) {
                     <div className="settings-subtitle">
                         Настройте JustVPN под себя
                     </div>
+
                 </div>
+
             </div>
+
 
             <section className="settings-section">
 
-                <h2>Тема JustVPN</h2>
+                <h2>
+                    Тема JustVPN
+                </h2>
 
                 <div className="theme-grid">
 
                     {themes.map((item) => (
+
                         <button
                             key={item.name}
-                            className={`theme-card ${theme === item.name
-                                ? 'selected'
-                                : ''
-                                }`}
+                            className={`theme-card ${
+                                theme === item.name
+                                    ? 'selected'
+                                    : ''
+                            }`}
                             onClick={() =>
-                                setTheme(item.name)
+                                setTheme(
+                                    item.name,
+                                )
                             }
                         >
+
                             <span
                                 className="theme-color"
                                 style={{
-                                    background: item.accent,
+                                    background:
+                                        item.accent,
                                 }}
                             />
 
@@ -69,24 +102,32 @@ function Settings({ onClose }: SettingsProps) {
                             </span>
 
                             {theme === item.name && (
+
                                 <span className="theme-check">
                                     ✓
                                 </span>
+
                             )}
+
                         </button>
+
                     ))}
 
                 </div>
 
             </section>
 
+
             <section className="settings-section">
 
-                <h2>Свой цвет</h2>
+                <h2>
+                    Свой цвет
+                </h2>
 
                 <div className="custom-color-card">
 
                     <div>
+
                         <strong>
                             Акцентный цвет
                         </strong>
@@ -94,13 +135,15 @@ function Settings({ onClose }: SettingsProps) {
                         <span>
                             Выберите любой цвет
                         </span>
+
                     </div>
 
                     <label className="color-picker">
 
                         <span
                             style={{
-                                background: accent,
+                                background:
+                                    accent,
                             }}
                         />
 
@@ -120,16 +163,21 @@ function Settings({ onClose }: SettingsProps) {
 
             </section>
 
+
             <section className="settings-section">
 
                 <div className="setting-row">
 
                     <div>
-                        <h2>Прозрачность</h2>
+
+                        <h2>
+                            Прозрачность
+                        </h2>
 
                         <span className="setting-description">
                             Прозрачность акцентных элементов
                         </span>
+
                     </div>
 
                     <strong>
@@ -146,19 +194,25 @@ function Settings({ onClose }: SettingsProps) {
                     value={opacity}
                     onChange={(event) =>
                         setOpacity(
-                            Number(event.target.value),
+                            Number(
+                                event.target.value,
+                            ),
                         )
                     }
                     style={{
-                        accentColor: accent,
+                        accentColor:
+                            accent,
                     }}
                 />
 
             </section>
 
+
             <section className="settings-section">
 
-                <h2>Режим</h2>
+                <h2>
+                    Режим
+                </h2>
 
                 <div className="mode-selector">
 
@@ -169,11 +223,15 @@ function Settings({ onClose }: SettingsProps) {
                                 : ''
                         }
                         onClick={() =>
-                            setMode('light')
+                            setMode(
+                                'light',
+                            )
                         }
                     >
                         ☀️
-                        <span>Светлая</span>
+                        <span>
+                            Светлая
+                        </span>
                     </button>
 
                     <button
@@ -183,16 +241,21 @@ function Settings({ onClose }: SettingsProps) {
                                 : ''
                         }
                         onClick={() =>
-                            setMode('dark')
+                            setMode(
+                                'dark',
+                            )
                         }
                     >
                         🌙
-                        <span>Тёмная</span>
+                        <span>
+                            Тёмная
+                        </span>
                     </button>
 
                 </div>
 
             </section>
+
 
             <div className="settings-preview">
 
@@ -203,15 +266,24 @@ function Settings({ onClose }: SettingsProps) {
                 <div className="preview-card">
 
                     <div className="preview-icon">
+
                         <img
                             src={justfastvpnIcon}
-                            alt="JustFastVPN"
+                            alt="JustVPN"
                         />
+
                     </div>
 
                     <div>
-                        <strong>JustFastVPN</strong>
-                        <span>Интерфейс настроен</span>
+
+                        <strong>
+                            JustVPN
+                        </strong>
+
+                        <span>
+                            Интерфейс настроен
+                        </span>
+
                     </div>
 
                     <div className="preview-status">
@@ -221,17 +293,44 @@ function Settings({ onClose }: SettingsProps) {
                 </div>
 
             </div>
+
+
             <button
                 className="settings-apply-button"
                 onClick={onClose}
             >
                 Применить
-                <span>✓</span>
+
+                <span>
+                    ✓
+                </span>
             </button>
+
+
+            <button
+                onClick={handleLogout}
+                style={{
+                    width: '100%',
+                    marginTop: 14,
+                    padding: '14px 18px',
+                    borderRadius: 14,
+                    border:
+                        '1px solid rgba(220, 70, 70, 0.35)',
+                    background:
+                        'rgba(220, 70, 70, 0.08)',
+                    color:
+                        '#e05252',
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                }}
+            >
+                Выйти из аккаунта
+            </button>
+
         </div>
     )
 }
-
 
 
 export default Settings

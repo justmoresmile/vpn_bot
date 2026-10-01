@@ -7,7 +7,9 @@ class User:
 
     id: int | None
 
-    telegram_id: int
+    telegram_id: int | None
+
+    email: str | None
 
     username: str | None
 
@@ -18,6 +20,10 @@ class User:
     is_blocked: bool = False
 
     api_key: str | None = None
+
+    vpn_provider: str | None = None
+    provider_user_id: int | None = None
+    provider_username: str | None = None
 
     created_at: datetime | None = None
 

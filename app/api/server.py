@@ -47,6 +47,15 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+
+@app.get("/health", tags=["Health"])
+async def root_health():
+    return {
+        "status": "ok",
+        "service": "justvpn-backend",
+    }
+
 app.include_router(
     public_subscription_router
 )

@@ -35,6 +35,9 @@ from app.services.subscription_service import (
 from app.services.vpn_service import (
     vpn_service,
 )
+from app.services.remnawave_service import (
+    remnawave_service,
+)
 
 from app.config import settings
 
@@ -104,8 +107,11 @@ async def get_config(
     ),
 ):
 
-    subscription = subscription_service.get_by_id(
-        subscription_id
+    subscription = (
+        subscription_service
+        .get_by_id(
+            subscription_id
+        )
     )
 
     if subscription is None:
@@ -119,19 +125,18 @@ async def get_config(
         user,
     )
 
-    if not subscription.subscription_token:
-        raise HTTPException(
-            status_code=404,
-            detail="Subscription token not found",
-        )
-
-    link = (
-        f"{settings.public_subscription_base_url.rstrip('/')}"
-        f"/{subscription.subscription_token}"
+    config = await vpn_service.get_config(
+        subscription_id
     )
 
+    if not config:
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription config not found",
+        )
+
     return ConfigResponse(
-        config=link,
+        config=config,
     )
 
 
@@ -185,8 +190,10 @@ async def get_subscription_usage(
     ),
 ):
 
-    subscription = subscription_service.get_by_id(
-        subscription_id
+    subscription = (
+        subscription_service.get_by_id(
+            subscription_id
+        )
     )
 
     if subscription is None:
@@ -199,6 +206,71 @@ async def get_subscription_usage(
         subscription,
         user,
     )
+
+    # --------------------------------------------------------
+    # REMNAWAVE
+    # --------------------------------------------------------
+
+    if (
+        subscription.provider
+        == "remnawave"
+    ):
+
+        from datetime import (
+            datetime,
+            timezone,
+        )
+
+        start = (
+            subscription.created_at
+            .date()
+            .isoformat()
+        )
+
+        end = (
+            datetime.now(
+                timezone.utc
+            )
+            .date()
+            .isoformat()
+        )
+
+        data = (
+            remnawave_service.get_usage(
+                justvpn_user_id=(
+                    subscription.user_id
+                ),
+                start=start,
+                end=end,
+            )
+        )
+
+        if not data:
+
+            return SubscriptionUsageResponse(
+                up=0,
+                down=0,
+                total=0,
+            )
+
+        total = int(
+            sum(
+                data.get(
+                    "sparklineData",
+                    [],
+                )
+            )
+        )
+
+        return SubscriptionUsageResponse(
+            up=0,
+            down=0,
+            total=total,
+        )
+
+    # --------------------------------------------------------
+    # LEGACY
+    # --------------------------------------------------------
 
     server = vpn_service._get_server(
         subscription
@@ -324,7 +396,7 @@ async def download_file(
 
 
 @router.get(
-"/{subscription_id}/devices",
+    "/{subscription_id}/devices",
     response_model=SubscriptionDevicesResponse,
 )
 async def get_subscription_devices(
@@ -351,6 +423,76 @@ async def get_subscription_devices(
         user,
     )
 
+    # --------------------------------------------------------
+    # REMNAWAVE
+    # --------------------------------------------------------
+
+    if subscription.provider == "remnawave":
+
+        data = remnawave_service.get_devices(
+            subscription.user_id
+        )
+
+        if not data:
+            return SubscriptionDevicesResponse(
+                count=0,
+                limit=subscription.device_limit,
+                devices=[],
+            )
+
+        remote_devices = (
+            data.get("devices", [])
+            or []
+        )
+
+        result = []
+
+        for device in remote_devices:
+
+            hwid = device.get("hwid")
+
+            last_seen = (
+                device.get("updatedAt")
+                or device.get("createdAt")
+            )
+
+            # Response schema requires both fields.
+            # Ignore malformed Remnawave records rather
+            # than returning invalid API data.
+            if not hwid or not last_seen:
+                continue
+
+            result.append(
+                SubscriptionDeviceResponse(
+                    id=str(hwid),
+                    model=device.get(
+                        "deviceModel"
+                    ),
+                    os=device.get(
+                        "platform"
+                    ),
+                    os_version=device.get(
+                        "osVersion"
+                    ),
+                    client_app=device.get(
+                        "userAgent"
+                    ),
+                    client_version=None,
+                    is_active=True,
+                    last_seen_at=last_seen,
+                )
+            )
+
+        return SubscriptionDevicesResponse(
+            count=len(result),
+            limit=subscription.device_limit,
+            devices=result,
+        )
+
+    # --------------------------------------------------------
+    # LEGACY
+    # --------------------------------------------------------
+
     devices = (
         device_repo.get_by_subscription(
             subscription.id,
@@ -374,7 +516,7 @@ async def get_subscription_devices(
 
         result.append(
             SubscriptionDeviceResponse(
-                id=device.id,
+                id=str(device.id),
                 model=(
                     device.device_name
                     or device.device_model
@@ -397,14 +539,14 @@ async def get_subscription_devices(
         )
 
     return SubscriptionDevicesResponse(
-        count=len(devices),
+        count=len(result),
         limit=subscription.device_limit,
         devices=result,
     )
 
 
 @router.get(
-"/{subscription_id}/link",
+    "/{subscription_id}/link",
     response_model=ConfigResponse,
 )
 async def get_subscription_link(
@@ -421,7 +563,6 @@ async def get_subscription_link(
     )
 
     if subscription is None:
-
         raise HTTPException(
             status_code=404,
             detail="Subscription not found",
@@ -433,49 +574,22 @@ async def get_subscription_link(
     )
 
     if subscription.protocol != "vless":
-
         raise HTTPException(
             status_code=400,
-            detail="Subscription link is available only for VLESS",
+            detail=(
+                "Subscription link is "
+                "available only for VLESS"
+            ),
         )
 
-    if not subscription.subscription_token:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Subscription token not found",
-        )
-
-    devices = (
-        device_repo.get_by_subscription(
-            subscription.id,
-            active_only=True,
-        )
+    link = await vpn_service.get_config(
+        subscription_id
     )
 
-    # Пока у пользователя есть один физический device slot —
-    # возвращаем его device-specific ссылку.
-    #
-    # Позже, когда появится "+ Добавить устройство",
-    # Mini App сможет выбирать конкретный device_id.
-    if devices:
-
-        device = devices[0]
-
-        link = (
-            f"{settings.public_subscription_base_url.rstrip('/')}"
-            f"/{subscription.subscription_token}"
-            f"/{device.device_token}"
-        )
-
-    else:
-
-        # Для совершенно новой подписки пока оставляем
-        # общий URL — первый совместимый клиент создаст
-        # первый физический device slot.
-        link = (
-            f"{settings.public_subscription_base_url.rstrip('/')}"
-            f"/{subscription.subscription_token}"
+    if not link:
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription link not found",
         )
 
     return ConfigResponse(

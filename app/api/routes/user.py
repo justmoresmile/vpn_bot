@@ -51,6 +51,7 @@ async def me(
     return UserResponse(
         id=user.id,
         telegram_id=user.telegram_id,
+        email=user.email,
         username=user.username,
         first_name=user.first_name,
         is_admin=user.is_admin,
