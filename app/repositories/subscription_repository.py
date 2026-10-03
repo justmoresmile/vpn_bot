@@ -50,6 +50,31 @@ class SubscriptionRepository:
             expires_at=datetime.fromtimestamp(
                 row["expires_at"]
             ),
+            billing_mode=(
+                row["billing_mode"]
+                if "billing_mode" in row.keys()
+                else "fixed"
+            ),
+            paid_until=(
+                datetime.fromtimestamp(
+                    row["paid_until"]
+                )
+                if (
+                    "paid_until" in row.keys()
+                    and row["paid_until"]
+                )
+                else None
+            ),
+            billing_day_index=(
+                row["billing_day_index"]
+                if "billing_day_index" in row.keys()
+                else 0
+            ),
+            billing_enabled=(
+                bool(row["billing_enabled"])
+                if "billing_enabled" in row.keys()
+                else True
+            ),
         )
 
     @staticmethod
@@ -74,9 +99,13 @@ class SubscriptionRepository:
                 status,
                 device_limit,
                 created_at,
-                expires_at
+                expires_at,
+                billing_mode,
+                paid_until,
+                billing_day_index,
+                billing_enabled
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 subscription.user_id,
@@ -97,6 +126,16 @@ class SubscriptionRepository:
                 int(
                     subscription.expires_at.timestamp()
                 ),
+                subscription.billing_mode,
+                (
+                    int(
+                        subscription.paid_until.timestamp()
+                    )
+                    if subscription.paid_until
+                    else None
+                ),
+                subscription.billing_day_index,
+                int(subscription.billing_enabled),
             ),
         )
 
@@ -352,7 +391,11 @@ class SubscriptionRepository:
                 config = ?,
                 status = ?,
                 device_limit = ?,
-                expires_at = ?
+                expires_at = ?,
+                billing_mode = ?,
+                paid_until = ?,
+                billing_day_index = ?,
+                billing_enabled = ?
             WHERE id = ?
             """,
             (
@@ -370,6 +413,16 @@ class SubscriptionRepository:
                 int(
                     subscription.expires_at.timestamp()
                 ),
+                subscription.billing_mode,
+                (
+                    int(
+                        subscription.paid_until.timestamp()
+                    )
+                    if subscription.paid_until
+                    else None
+                ),
+                subscription.billing_day_index,
+                int(subscription.billing_enabled),
                 subscription.id,
             ),
         )

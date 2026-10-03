@@ -176,6 +176,101 @@ class VPNService:
         return created
 
     # ============================================================
+    # CREATE BALANCE SUBSCRIPTION
+    # ============================================================
+
+    async def create_balance_subscription(
+        self,
+        user_id: int,
+        protocol: str = "vless",
+    ) -> Subscription:
+
+        protocol = protocol.lower().strip()
+
+        if protocol != "vless":
+            raise ValueError(
+                f"Unsupported VPN protocol: {protocol}"
+            )
+
+        # Не выдаём бесплатный период.
+        # Новая balance-подписка создаётся уже due.
+        now = datetime.now(
+            timezone.utc
+        )
+
+        due_at = (
+            now
+            - timedelta(seconds=5)
+        )
+
+        provider_user = (
+            remnawave_service.ensure_user(
+                justvpn_user_id=user_id,
+                expire_at=due_at,
+                hwid_device_limit=2,
+            )
+        )
+
+        # Пользователь до успешного списания
+        # обязан оставаться выключенным.
+        remote_status = str(
+            provider_user.get(
+                "status",
+                "",
+            )
+        ).upper()
+
+        if remote_status != "DISABLED":
+            remnawave_service.disable_user(
+                user_id
+            )
+
+        subscription = Subscription(
+            id=None,
+            user_id=user_id,
+            provider="remnawave",
+            protocol=protocol,
+            server_id=None,
+            inbound_id=None,
+            client_id=(
+                provider_user.get(
+                    "vlessUuid"
+                )
+            ),
+            client_email=None,
+            sub_id=None,
+            subscription_token=(
+                generate_subscription_token()
+            ),
+            config="",
+            status=(
+                SubscriptionStatus.DISABLED
+            ),
+            device_limit=2,
+            created_at=now,
+            expires_at=due_at,
+            billing_mode="balance",
+            paid_until=due_at,
+            billing_day_index=0,
+            billing_enabled=True,
+        )
+
+        created = subscription_repo.create(
+            subscription
+        )
+
+        logger.info(
+            "Balance subscription created "
+            "user={} subscription={} "
+            "provider_user={}",
+            user_id,
+            created.id,
+            provider_user.get("id"),
+        )
+
+        return created
+
+    # ============================================================
     # PURCHASE
     # ============================================================
 
@@ -537,6 +632,11 @@ class VPNService:
         self,
         subscription: Subscription,
     ) -> Subscription:
+
+        # Deleted is a terminal local state.
+        # Remote provider status must never revive it.
+        if subscription.status == SubscriptionStatus.DELETED:
+            return subscription
 
         # --------------------------------------------------------
         # REMNAWAVE

@@ -2,7 +2,10 @@ from fastapi import (
     APIRouter,
     Request,
     HTTPException,
+    Depends,
 )
+
+from pydantic import BaseModel, Field
 
 from app.logger import logger
 
@@ -10,12 +13,71 @@ from app.services.payment_service import (
     payment_service,
 )
 
+from app.api.dependencies.auth import (
+    get_current_user,
+)
+
+from app.domain.user import User
+
 
 router = APIRouter(
     prefix="/payment",
     tags=["Payment"],
 )
 
+
+class BalanceTopupRequest(BaseModel):
+    amount: int = Field(
+        ge=10,
+        le=10000,
+    )
+
+
+
+
+@router.post(
+    "/topup"
+)
+async def create_balance_topup(
+    request: BalanceTopupRequest,
+    user: User = Depends(
+        get_current_user
+    ),
+):
+    try:
+        payment = await payment_service.create_balance_topup(
+            user_id=user.id,
+            amount_rubles=request.amount,
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+    return {
+        "payment_id": payment.id,
+        "provider_payment_id": (
+            payment.provider_payment_id
+        ),
+        "confirmation_url": (
+            payment.confirmation_url
+        ),
+        "amount": payment.amount,
+        "amount_kopecks": (
+            payment.amount_kopecks
+        ),
+        "currency": payment.currency,
+        "status": (
+            payment.status.value
+            if hasattr(
+                payment.status,
+                "value",
+            )
+            else payment.status
+        ),
+    }
 
 
 @router.post(

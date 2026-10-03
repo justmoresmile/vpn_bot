@@ -17,15 +17,11 @@ class YooKassaClient:
             settings.yookassa_secret_key
         )
 
-        
-
-
     def create_payment(
         self,
         amount: float,
         description: str,
     ):
-
         payment = Payment.create(
             {
                 "amount": {
@@ -44,8 +40,15 @@ class YooKassaClient:
             uuid.uuid4().hex,
         )
 
-
         return payment
+
+    def get_payment(
+        self,
+        payment_id: str,
+    ):
+        return Payment.find_one(
+            payment_id
+        )
 
 
 yookassa_client = YooKassaClient()

@@ -33,6 +33,9 @@ class SubscriptionReminderService:
 
         for subscription in subscriptions:
 
+            if subscription.billing_mode == "balance":
+                continue
+
             if not subscription.expires_at:
                 continue
 
@@ -85,6 +88,18 @@ class SubscriptionReminderService:
                 logger.warning(
                     "User not found subscription={}",
                     subscription.id,
+                )
+
+                continue
+
+            if user.telegram_id is None:
+
+                logger.debug(
+                    "Skip Telegram reminder "
+                    "subscription={} user={} "
+                    "reason=no_telegram_id",
+                    subscription.id,
+                    subscription.user_id,
                 )
 
                 continue

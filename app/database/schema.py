@@ -32,6 +32,8 @@ def create_tables():
 
             provider_username TEXT,
 
+            balance_kopecks INTEGER NOT NULL DEFAULT 0,
+
             created_at INTEGER DEFAULT (strftime('%s','now'))
         )
     """)
@@ -69,6 +71,12 @@ def create_tables():
         db.execute("""
             ALTER TABLE users
             ADD COLUMN provider_username TEXT
+        """)
+
+    if "balance_kopecks" not in user_columns:
+        db.execute("""
+            ALTER TABLE users
+            ADD COLUMN balance_kopecks INTEGER NOT NULL DEFAULT 0
         """)
 
     db.execute("""
@@ -142,6 +150,35 @@ def create_tables():
     """)
 
     # =========================
+    # USER TRIAL MIGRATIONS
+    # =========================
+
+    user_columns = {
+        row["name"]
+        for row in db.fetchall(
+            "PRAGMA table_info(users)"
+        )
+    }
+
+    if "trial_used" not in user_columns:
+        db.execute("""
+            ALTER TABLE users
+            ADD COLUMN trial_used INTEGER NOT NULL DEFAULT 0
+        """)
+
+    if "trial_started_at" not in user_columns:
+        db.execute("""
+            ALTER TABLE users
+            ADD COLUMN trial_started_at INTEGER
+        """)
+
+    if "trial_ends_at" not in user_columns:
+        db.execute("""
+            ALTER TABLE users
+            ADD COLUMN trial_ends_at INTEGER
+        """)
+
+    # =========================
     # SUBSCRIPTIONS
     # =========================
 
@@ -168,6 +205,14 @@ def create_tables():
 
             expires_at INTEGER NOT NULL,
 
+            billing_mode TEXT NOT NULL DEFAULT 'fixed',
+
+            paid_until INTEGER,
+
+            billing_day_index INTEGER NOT NULL DEFAULT 0,
+
+            billing_enabled INTEGER NOT NULL DEFAULT 1,
+
             server_id INTEGER,
 
             inbound_id INTEGER,
@@ -188,6 +233,41 @@ def create_tables():
                 REFERENCES servers(id)
         )
     """)
+
+    # =========================
+    # SUBSCRIPTIONS MIGRATIONS
+    # =========================
+
+    subscription_columns = {
+        row["name"]
+        for row in db.fetchall(
+            "PRAGMA table_info(subscriptions)"
+        )
+    }
+
+    if "billing_mode" not in subscription_columns:
+        db.execute("""
+            ALTER TABLE subscriptions
+            ADD COLUMN billing_mode TEXT NOT NULL DEFAULT 'fixed'
+        """)
+
+    if "paid_until" not in subscription_columns:
+        db.execute("""
+            ALTER TABLE subscriptions
+            ADD COLUMN paid_until INTEGER
+        """)
+
+    if "billing_day_index" not in subscription_columns:
+        db.execute("""
+            ALTER TABLE subscriptions
+            ADD COLUMN billing_day_index INTEGER NOT NULL DEFAULT 0
+        """)
+
+    if "billing_enabled" not in subscription_columns:
+        db.execute("""
+            ALTER TABLE subscriptions
+            ADD COLUMN billing_enabled INTEGER NOT NULL DEFAULT 1
+        """)
 
     # =========================
     # DEVICES
@@ -247,6 +327,10 @@ def create_tables():
 
             amount REAL NOT NULL,
 
+            amount_kopecks INTEGER,
+
+            payment_type TEXT NOT NULL DEFAULT 'subscription',
+
             currency TEXT NOT NULL,
 
             status TEXT NOT NULL,
@@ -269,6 +353,81 @@ def create_tables():
             FOREIGN KEY(subscription_id)
                 REFERENCES subscriptions(id)
         )
+    """)
+
+    # =========================
+    # WALLET TRANSACTIONS
+    # =========================
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS wallet_transactions
+        (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            user_id INTEGER NOT NULL,
+
+            type TEXT NOT NULL,
+
+            amount_kopecks INTEGER NOT NULL,
+
+            balance_after_kopecks INTEGER NOT NULL,
+
+            payment_id INTEGER,
+
+            description TEXT,
+
+            created_at INTEGER NOT NULL
+                DEFAULT (strftime('%s','now')),
+
+            FOREIGN KEY(user_id)
+                REFERENCES users(id),
+
+            FOREIGN KEY(payment_id)
+                REFERENCES payments(id)
+        )
+    """)
+
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_wallet_transactions_user
+        ON wallet_transactions(user_id)
+    """)
+
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_wallet_transactions_created
+        ON wallet_transactions(created_at)
+    """)
+
+    # =========================
+    # PAYMENTS MIGRATIONS
+    # =========================
+
+    payment_columns = {
+        row["name"]
+        for row in db.fetchall(
+            "PRAGMA table_info(payments)"
+        )
+    }
+
+    if "amount_kopecks" not in payment_columns:
+        db.execute("""
+            ALTER TABLE payments
+            ADD COLUMN amount_kopecks INTEGER
+        """)
+
+    if "payment_type" not in payment_columns:
+        db.execute("""
+            ALTER TABLE payments
+            ADD COLUMN payment_type TEXT NOT NULL
+            DEFAULT 'subscription'
+        """)
+
+    db.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        idx_wallet_transactions_payment_unique
+        ON wallet_transactions(payment_id)
+        WHERE payment_id IS NOT NULL
     """)
 
     # =========================

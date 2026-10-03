@@ -57,6 +57,33 @@ class UsersRepository:
                 if "provider_username" in keys
                 else None
             ),
+            trial_used=(
+                bool(row["trial_used"])
+                if "trial_used" in keys
+                else False
+            ),
+
+            trial_started_at=(
+                datetime.fromtimestamp(
+                    row["trial_started_at"]
+                )
+                if (
+                    "trial_started_at" in keys
+                    and row["trial_started_at"]
+                )
+                else None
+            ),
+
+            trial_ends_at=(
+                datetime.fromtimestamp(
+                    row["trial_ends_at"]
+                )
+                if (
+                    "trial_ends_at" in keys
+                    and row["trial_ends_at"]
+                )
+                else None
+            ),
         )
 
     # ==============================
@@ -184,6 +211,63 @@ class UsersRepository:
             )
 
         return created
+
+    # ==============================
+    # CLAIM TRIAL
+    # ==============================
+
+    @staticmethod
+    def claim_trial(
+        user_id: int,
+        started_at: datetime,
+        ends_at: datetime,
+    ) -> bool:
+
+        cursor = db.execute(
+            """
+            UPDATE users
+            SET
+                trial_used = 1,
+                trial_started_at = ?,
+                trial_ends_at = ?
+            WHERE
+                id = ?
+                AND trial_used = 0
+            """,
+            (
+                int(started_at.timestamp()),
+                int(ends_at.timestamp()),
+                user_id,
+            ),
+        )
+
+        return cursor.rowcount == 1
+
+    @staticmethod
+    def release_trial(
+        user_id: int,
+        started_at: datetime,
+    ) -> bool:
+
+        cursor = db.execute(
+            """
+            UPDATE users
+            SET
+                trial_used = 0,
+                trial_started_at = NULL,
+                trial_ends_at = NULL
+            WHERE
+                id = ?
+                AND trial_used = 1
+                AND trial_started_at = ?
+            """,
+            (
+                user_id,
+                int(started_at.timestamp()),
+            ),
+        )
+
+        return cursor.rowcount == 1
 
     # ==============================
     # UPDATE PROFILE

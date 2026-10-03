@@ -37,3 +37,9 @@ class Subscription:
 
     created_at: datetime | None = None
     expires_at: datetime | None = None
+
+    # Billing
+    billing_mode: str = "fixed"
+    paid_until: datetime | None = None
+    billing_day_index: int = 0
+    billing_enabled: bool = True

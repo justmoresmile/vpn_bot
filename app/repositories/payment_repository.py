@@ -58,6 +58,17 @@ class PaymentRepository:
                 and row["updated_at"]
                 else None
             ),
+            payment_type=(
+                row["payment_type"]
+                if "payment_type" in row.keys()
+                else "subscription"
+            ),
+
+            amount_kopecks=(
+                row["amount_kopecks"]
+                if "amount_kopecks" in row.keys()
+                else None
+            ),
         )   
 
 
@@ -77,6 +88,8 @@ class PaymentRepository:
                 subscription_days,
                 subscription_id,
                 amount,
+                amount_kopecks,
+                payment_type,
                 currency,
                 provider,
                 provider_payment_id,
@@ -86,7 +99,7 @@ class PaymentRepository:
                 paid_at
             )
 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
             """,
 
@@ -101,6 +114,10 @@ class PaymentRepository:
                 payment.subscription_id,
 
                 payment.amount,
+
+                payment.amount_kopecks,
+
+                payment.payment_type,
 
                 payment.currency,
 
@@ -478,6 +495,188 @@ class PaymentRepository:
         )
 
 
+
+    @staticmethod
+    def mark_paid_and_credit_wallet(
+        payment_id: int,
+    ) -> tuple[Payment | None, bool]:
+
+        with db.transaction() as cursor:
+
+            cursor.execute(
+                """
+                SELECT *
+                FROM payments
+                WHERE id = ?
+                """,
+                (
+                    payment_id,
+                ),
+            )
+
+            row = cursor.fetchone()
+
+            if row is None:
+                return None, False
+
+            current_status = row["status"]
+
+            if current_status == PaymentStatus.PAID.value:
+                return (
+                    PaymentRepository._to_entity(row),
+                    False,
+                )
+
+            if current_status != PaymentStatus.PENDING.value:
+                return (
+                    PaymentRepository._to_entity(row),
+                    False,
+                )
+
+            if row["payment_type"] != "balance_topup":
+                raise ValueError(
+                    "Payment is not a balance topup"
+                )
+
+            amount_kopecks = row["amount_kopecks"]
+
+            if (
+                amount_kopecks is None
+                or amount_kopecks <= 0
+            ):
+                raise ValueError(
+                    "Invalid payment amount_kopecks"
+                )
+
+            user_id = row["user_id"]
+
+            cursor.execute(
+                """
+                SELECT balance_kopecks
+                FROM users
+                WHERE id = ?
+                """,
+                (
+                    user_id,
+                ),
+            )
+
+            user_row = cursor.fetchone()
+
+            if user_row is None:
+                raise ValueError(
+                    "Payment user not found"
+                )
+
+            new_balance = (
+                int(user_row["balance_kopecks"])
+                + int(amount_kopecks)
+            )
+
+            now = int(
+                datetime.now().timestamp()
+            )
+
+            cursor.execute(
+                """
+                UPDATE payments
+                SET
+                    status = 'paid',
+                    paid_at = ?,
+                    updated_at = ?
+                WHERE
+                    id = ?
+                    AND status = 'pending'
+                """,
+                (
+                    now,
+                    now,
+                    payment_id,
+                ),
+            )
+
+            if cursor.rowcount != 1:
+
+                cursor.execute(
+                    """
+                    SELECT *
+                    FROM payments
+                    WHERE id = ?
+                    """,
+                    (
+                        payment_id,
+                    ),
+                )
+
+                latest = cursor.fetchone()
+
+                return (
+                    (
+                        PaymentRepository._to_entity(
+                            latest
+                        )
+                        if latest
+                        else None
+                    ),
+                    False,
+                )
+
+            cursor.execute(
+                """
+                UPDATE users
+                SET balance_kopecks = ?
+                WHERE id = ?
+                """,
+                (
+                    new_balance,
+                    user_id,
+                ),
+            )
+
+            cursor.execute(
+                """
+                INSERT INTO wallet_transactions
+                (
+                    user_id,
+                    type,
+                    amount_kopecks,
+                    balance_after_kopecks,
+                    payment_id,
+                    description,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    "topup",
+                    amount_kopecks,
+                    new_balance,
+                    payment_id,
+                    "YooKassa balance topup",
+                    now,
+                ),
+            )
+
+            cursor.execute(
+                """
+                SELECT *
+                FROM payments
+                WHERE id = ?
+                """,
+                (
+                    payment_id,
+                ),
+            )
+
+            updated = cursor.fetchone()
+
+            return (
+                PaymentRepository._to_entity(
+                    updated
+                ),
+                True,
+            )
 
     @staticmethod
     def get_all(

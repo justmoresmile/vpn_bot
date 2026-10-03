@@ -730,6 +730,12 @@ class AdminService:
         if subscription is None:
             return None
 
+        if subscription.billing_mode == "balance":
+            subscription.billing_enabled = False
+
+            subscription_repo.update(
+                subscription
+            )
 
         return await vpn_service.disable(
             subscription,
@@ -768,6 +774,43 @@ class AdminService:
 
         if subscription is None:
             return None
+
+        if subscription.billing_mode == "balance":
+
+            from datetime import datetime
+
+            from app.services.billing_service import (
+                billing_service,
+            )
+
+            subscription.billing_enabled = True
+
+            subscription_repo.update(
+                subscription
+            )
+
+            # Текущий период ещё оплачен
+            # или это активный trial.
+            # Просто возвращаем доступ без списания.
+            if (
+                subscription.paid_until is not None
+                and subscription.paid_until
+                > datetime.now()
+            ):
+                return await vpn_service.restore_client(
+                    subscription
+                )
+
+            # Период закончился.
+            # BillingService либо спишет 4 ₽ и включит,
+            # либо оставит disabled при нехватке денег.
+            await billing_service.process_subscription(
+                subscription.id
+            )
+
+            return subscription_repo.get_by_id(
+                subscription.id
+            )
 
         return await vpn_service.restore_client(
             subscription

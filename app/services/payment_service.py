@@ -4,8 +4,10 @@ from loguru import logger
 
 from app.domain.payment import Payment
 from app.domain.enums.payment_status import PaymentStatus
+from app.domain.enums.subscription_status import SubscriptionStatus
 
 from app.repositories.payment_repository import payment_repo
+from app.repositories.subscription_repository import subscription_repo
 from app.payments.yookassa_client import yookassa_client
 from app.services.vpn_service import vpn_service
 from app.repositories.user_repository import users_repo
@@ -100,6 +102,63 @@ class PaymentService:
         )
 
 
+    async def create_balance_topup(
+        self,
+        user_id: int,
+        amount_rubles: int,
+    ) -> Payment:
+
+        if amount_rubles < 10:
+            raise ValueError(
+                "Minimum topup is 10 RUB"
+            )
+
+        if amount_rubles > 10000:
+            raise ValueError(
+                "Maximum topup is 10000 RUB"
+            )
+
+        amount_kopecks = (
+            amount_rubles * 100
+        )
+
+        payment = await asyncio.to_thread(
+            yookassa_client.create_payment,
+            amount=amount_rubles,
+            description=(
+                f"Пополнение баланса JustVPN "
+                f"на {amount_rubles} руб."
+            ),
+        )
+
+        entity = Payment(
+            id=None,
+            user_id=user_id,
+            subscription_id=None,
+            protocol="balance",
+            subscription_days=0,
+            amount=float(amount_rubles),
+            currency="RUB",
+            provider="yookassa",
+            provider_payment_id=payment.id,
+            confirmation_url=(
+                payment.confirmation.confirmation_url
+                if payment.confirmation
+                else None
+            ),
+            status=PaymentStatus.PENDING,
+            created_at=datetime.now(),
+            paid_at=None,
+            updated_at=datetime.now(),
+            payment_type="balance_topup",
+            amount_kopecks=amount_kopecks,
+        )
+
+        return payment_repo.create(
+            entity
+        )
+
+
     def get_payment(
         self,
         payment_id: int,
@@ -125,6 +184,73 @@ class PaymentService:
 
 
 
+    async def activate_balance_access(
+        self,
+        user_id: int,
+    ):
+        from app.services.billing_service import (
+            billing_service,
+        )
+
+        subscriptions = (
+            subscription_service.get_by_user(
+                user_id
+            )
+        )
+
+        # Уже есть balance-подписка.
+        for subscription in subscriptions:
+            if (
+                subscription.billing_mode == "balance"
+                and subscription.status
+                != SubscriptionStatus.DELETED
+                and subscription.billing_enabled
+            ):
+                return await billing_service.process_subscription(
+                    subscription.id
+                )
+
+        # Если существует действующая fixed-подписка,
+        # не начинаем списывать баланс параллельно.
+        now = datetime.now()
+
+        for subscription in subscriptions:
+            if (
+                subscription.billing_mode == "fixed"
+                and subscription.status
+                == SubscriptionStatus.ACTIVE
+                and subscription.expires_at
+                and subscription.expires_at > now
+            ):
+                logger.info(
+                    "Skip balance subscription creation "
+                    "user={} reason=active_fixed_subscription "
+                    "subscription={}",
+                    user_id,
+                    subscription.id,
+                )
+
+                return {
+                    "status": "active_fixed_subscription",
+                    "subscription_id": subscription.id,
+                }
+
+        # Новый пользователь:
+        # создаём balance-подписку сразу без
+        # бесплатного технического периода.
+        subscription = (
+            await vpn_service
+            .create_balance_subscription(
+                user_id=user_id,
+                protocol="vless",
+            )
+        )
+
+        return await billing_service.process_subscription(
+            subscription.id
+        )
+
+
     async def process_successful_payment(
         self,
         provider_payment_id: str,
@@ -144,21 +270,150 @@ class PaymentService:
             )
             return None
 
-        if payment.status == PaymentStatus.PAID.value:
+        # Никогда не доверяем только входящему webhook.
+        # Подтверждаем состояние платежа непосредственно
+        # через API YooKassa.
+        if payment.provider == "yookassa":
+
+            provider_payment = await asyncio.to_thread(
+                yookassa_client.get_payment,
+                provider_payment_id,
+            )
+
+            if provider_payment.status != "succeeded":
+                logger.warning(
+                    "YooKassa payment is not succeeded "
+                    "payment={} status={}",
+                    payment.id,
+                    provider_payment.status,
+                )
+                return payment
+
+            provider_currency = (
+                provider_payment.amount.currency
+            )
+
+            provider_amount = (
+                float(
+                    provider_payment.amount.value
+                )
+            )
+
+            if (
+                provider_currency != payment.currency
+                or abs(
+                    provider_amount
+                    - float(payment.amount)
+                ) > 0.001
+            ):
+                logger.error(
+                    "YooKassa payment amount mismatch "
+                    "payment={} expected={} {} "
+                    "received={} {}",
+                    payment.id,
+                    payment.amount,
+                    payment.currency,
+                    provider_amount,
+                    provider_currency,
+                )
+                raise RuntimeError(
+                    "Payment amount verification failed"
+                )
+
+        if payment.status == PaymentStatus.PAID:
+
             logger.info(
                 f"Payment already processed {payment.id}"
             )
+
+            # Деньги второй раз не зачисляем.
+            # Но для balance-платежа повторно проверяем
+            # состояние доступа. Это позволяет восстановиться,
+            # если YooKassa была обработана, а Remnawave
+            # временно был недоступен.
+            if payment.payment_type == "balance_topup":
+
+                try:
+                    result = await self.activate_balance_access(
+                        payment.user_id
+                    )
+
+                    logger.info(
+                        "Balance access retry "
+                        "payment={} result={}",
+                        payment.id,
+                        result,
+                    )
+
+                except Exception:
+                    logger.exception(
+                        "Balance access retry failed "
+                        "payment={}",
+                        payment.id,
+                    )
+                    raise
+
             return payment
 
         if payment.status in (
-            PaymentStatus.FAILED.value,
-            PaymentStatus.CANCELED.value,
-            PaymentStatus.EXPIRED.value,
+            PaymentStatus.FAILED,
+            PaymentStatus.CANCELED,
+            PaymentStatus.EXPIRED,
         ):
             logger.warning(
                 f"Payment has invalid status: {payment.status}"
             )
             return payment
+
+        # =========================================================
+        # BALANCE TOPUP
+        # =========================================================
+
+        if payment.payment_type == "balance_topup":
+
+            payment, credited = (
+                payment_repo.mark_paid_and_credit_wallet(
+                    payment.id
+                )
+            )
+
+            if payment is None:
+                return None
+
+            if credited:
+
+                logger.success(
+                    "Balance credited "
+                    "payment={} user={} amount_kopecks={}",
+                    payment.id,
+                    payment.user_id,
+                    payment.amount_kopecks,
+                )
+
+                activation_result = (
+                    await self.activate_balance_access(
+                        payment.user_id
+                    )
+                )
+
+                logger.info(
+                    "Balance access result "
+                    "payment={} user={} result={}",
+                    payment.id,
+                    payment.user_id,
+                    activation_result,
+                )
+
+            else:
+
+                logger.info(
+                    "Balance payment already credited "
+                    "payment={}",
+                    payment.id,
+                )
+
+            return payment
+
 
         # ВАЖНО:
         # запоминаем тип операции ДО изменения payment.subscription_id

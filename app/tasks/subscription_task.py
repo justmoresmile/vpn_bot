@@ -2,6 +2,9 @@ import asyncio
 
 from loguru import logger
 
+from app.services.billing_service import (
+    billing_service,
+)
 from app.services.subscription_checker import (
     subscription_checker,
 )
@@ -16,7 +19,6 @@ from app.services.subscription_reminder_service import (
 )
 
 
-
 async def subscription_task():
 
     logger.info(
@@ -26,6 +28,31 @@ async def subscription_task():
     payment_counter = 0
 
     while True:
+
+        # ==============================================
+        # BALANCE BILLING
+        # ==============================================
+
+        try:
+
+            result = await billing_service.process_due()
+
+            if result["processed"] > 0:
+
+                logger.info(
+                    "Balance billing cycle: {}",
+                    result,
+                )
+
+        except Exception:
+
+            logger.exception(
+                "Balance billing failed."
+            )
+
+        # ==============================================
+        # VPN / PROVIDER SYNC
+        # ==============================================
 
         try:
 
@@ -37,6 +64,9 @@ async def subscription_task():
                 "Subscription sync failed."
             )
 
+        # ==============================================
+        # SUBSCRIPTION REMINDERS
+        # ==============================================
 
         try:
 
@@ -48,12 +78,12 @@ async def subscription_task():
                 "Subscription reminder failed."
             )
 
-
-
-        
+        # ==============================================
+        # SUBSCRIPTION CHECKER
+        # ==============================================
 
         try:
-            
+
             await subscription_checker.run()
 
         except Exception:
@@ -62,11 +92,10 @@ async def subscription_task():
                 "Subscription checker failed."
             )
 
-     
-
-           
-
-       
+        # ==============================================
+        # PENDING PAYMENTS
+        # Every 10 cycles = approximately 10 minutes
+        # ==============================================
 
         try:
 
@@ -85,5 +114,3 @@ async def subscription_task():
             )
 
         await asyncio.sleep(60)
-
-        

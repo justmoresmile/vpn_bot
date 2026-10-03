@@ -32,3 +32,7 @@ class User:
     payments_count: int = 0
 
     total_paid: int = 0
+
+    trial_used: bool = False
+    trial_started_at: datetime | None = None
+    trial_ends_at: datetime | None = None

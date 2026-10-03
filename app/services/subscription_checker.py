@@ -42,6 +42,9 @@ class SubscriptionChecker:
 
         for subscription in subscriptions:
 
+            if subscription.billing_mode == "balance":
+                continue
+
             try:
 
                 await vpn_service.disable(

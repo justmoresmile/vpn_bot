@@ -32,3 +32,6 @@ class Payment:
     paid_at: datetime | None
 
     updated_at: datetime | None
+
+    payment_type: str = "subscription"
+    amount_kopecks: int | None = None

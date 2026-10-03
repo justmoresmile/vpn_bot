@@ -10,6 +10,7 @@ from app.api.routes.payment import router as payment_router
 from app.api.routes.purchase import router as purchase_router
 from app.api.routes.internal import router as internal_router
 from app.api.routes.admin import router as admin_router
+from app.api.routes.trial import router as trial_router
 
 
 router = APIRouter(
@@ -40,6 +41,11 @@ router.include_router(
 router.include_router(
     payment_router
 )
+
+router.include_router(
+    trial_router
+)
+
 
 router.include_router(
     purchase_router
