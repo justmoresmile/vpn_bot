@@ -1133,7 +1133,7 @@ class AdminService:
             self,
             user_id: int,
             days: int,
-            protocol: str = "wireguard",
+            protocol: str = "vless",
         ):
 
             return await vpn_service.create(

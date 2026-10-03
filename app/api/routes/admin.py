@@ -904,6 +904,42 @@ async def create_user_subscription(
     }
 
 
+
+@router.delete(
+    "/subscriptions/{subscription_id}",
+)
+async def delete_subscription(
+    subscription_id: int,
+    user: User = Depends(
+        get_current_user
+    ),
+):
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied",
+        )
+
+    subscription = admin_service.get_subscription(
+        subscription_id
+    )
+
+    if subscription is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription not found",
+        )
+
+    await admin_service.delete_subscription(
+        subscription_id
+    )
+
+    return {
+        "id": subscription_id,
+        "status": "deleted",
+    }
+
+
 @router.post("/login")
 async def admin_login(
     data: dict,
