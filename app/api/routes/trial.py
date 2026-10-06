@@ -122,3 +122,34 @@ async def start_trial(
             status_code=409,
             detail=str(exc),
         )
+
+
+@router.post(
+    "/finish"
+)
+async def finish_trial(
+    device_limit: int,
+    user: User = Depends(
+        get_current_user
+    ),
+):
+    try:
+
+        return await trial_service.finish(
+            user.id,
+            device_limit=device_limit,
+        )
+
+    except ValueError as exc:
+
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        )
+
+    except RuntimeError as exc:
+
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        )

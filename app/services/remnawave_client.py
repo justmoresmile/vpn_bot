@@ -102,6 +102,16 @@ class RemnawaveClient:
             json=payload,
         )
 
+    def delete_user(
+        self,
+        user_id: int,
+    ) -> Any:
+
+        return self.request(
+            "DELETE",
+            f"/api/users/{user_id}",
+        )
+
     # ==============================================================
     # SUBSCRIPTIONS
     # ==============================================================
@@ -148,6 +158,22 @@ class RemnawaveClient:
         return self.request(
             "GET",
             f"/api/hwid/devices/{user_uuid}",
+        )
+
+
+    def delete_device(
+        self,
+        user_id: int,
+        hwid: str,
+    ) -> Any:
+
+        return self.request(
+            "POST",
+            "/api/hwid/devices/delete",
+            json={
+                "userId": user_id,
+                "hwid": hwid,
+            },
         )
 
     # ==============================================================

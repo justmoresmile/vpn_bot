@@ -17,6 +17,11 @@ from app.services.subscription_token import (
 from app.services.remnawave_service import (
     remnawave_service,
 )
+from app.services.pricing_service import (
+    MIN_DEVICE_LIMIT,
+    MAX_DEVICE_LIMIT,
+    TRIAL_DEVICE_LIMIT,
+)
 
 class VPNService:
 
@@ -129,7 +134,7 @@ class VPNService:
             remnawave_service.ensure_user(
                 justvpn_user_id=user_id,
                 expire_at=expires_at,
-                hwid_device_limit=2,
+                hwid_device_limit=1,
             )
         )
 
@@ -154,7 +159,7 @@ class VPNService:
             status=(
                 SubscriptionStatus.ACTIVE
             ),
-            device_limit=2,
+            device_limit=1,
             created_at=now,
             expires_at=expires_at,
         )
@@ -207,7 +212,7 @@ class VPNService:
             remnawave_service.ensure_user(
                 justvpn_user_id=user_id,
                 expire_at=due_at,
-                hwid_device_limit=2,
+                hwid_device_limit=TRIAL_DEVICE_LIMIT,
             )
         )
 
@@ -246,7 +251,7 @@ class VPNService:
             status=(
                 SubscriptionStatus.DISABLED
             ),
-            device_limit=2,
+            device_limit=TRIAL_DEVICE_LIMIT,
             created_at=now,
             expires_at=due_at,
             billing_mode="balance",
@@ -269,6 +274,137 @@ class VPNService:
         )
 
         return created
+
+    # ============================================================
+    # DEVICE LIMIT
+    # ============================================================
+
+    async def set_device_limit(
+        self,
+        subscription: Subscription,
+        device_limit: int,
+    ) -> Subscription:
+
+        if subscription.billing_mode != "balance":
+            raise ValueError(
+                "Изменение количества устройств "
+                "доступно только для balance-подписки"
+            )
+
+        if (
+            device_limit < MIN_DEVICE_LIMIT
+            or device_limit > MAX_DEVICE_LIMIT
+        ):
+            raise ValueError(
+                f"Количество устройств должно быть "
+                f"от {MIN_DEVICE_LIMIT} "
+                f"до {MAX_DEVICE_LIMIT}"
+            )
+
+        if (
+            subscription.status
+            == SubscriptionStatus.DELETED
+        ):
+            raise ValueError(
+                "Подписка удалена"
+            )
+
+        if (
+            subscription.device_limit
+            == device_limit
+        ):
+            return subscription
+
+        expire_at = (
+            subscription.paid_until
+            or subscription.expires_at
+        )
+
+        if expire_at is None:
+            raise ValueError(
+                "У подписки отсутствует дата "
+                "окончания оплаченного периода"
+            )
+
+        # Запоминаем состояние до изменения.
+        # Изменение device_limit не должно
+        # самостоятельно включать VPN.
+        remote_before = (
+            remnawave_service.get_user(
+                subscription.user_id
+            )
+        )
+
+        remote_status_before = (
+            str(
+                remote_before.get(
+                    "status",
+                    "",
+                )
+            ).upper()
+            if remote_before
+            else ""
+        )
+
+        remnawave_service.ensure_user(
+            justvpn_user_id=subscription.user_id,
+            expire_at=expire_at,
+            hwid_device_limit=device_limit,
+        )
+
+        # Если пользователь был отключён,
+        # оставляем его отключённым.
+        if (
+            remote_status_before
+            == "DISABLED"
+        ):
+            remote_after = (
+                remnawave_service.get_user(
+                    subscription.user_id
+                )
+            )
+
+            remote_status_after = (
+                str(
+                    remote_after.get(
+                        "status",
+                        "",
+                    )
+                ).upper()
+                if remote_after
+                else ""
+            )
+
+            if remote_status_after != "DISABLED":
+                remnawave_service.disable_user(
+                    subscription.user_id
+                )
+
+        # Локальную БД меняем только после
+        # успешного обновления Remnawave.
+        old_device_limit = (
+            subscription.device_limit
+        )
+
+        subscription.device_limit = (
+            device_limit
+        )
+
+        subscription_repo.update(
+            subscription
+        )
+
+        logger.info(
+            "Subscription device limit changed "
+            "subscription={} user={} "
+            "old_limit={} new_limit={}",
+            subscription.id,
+            subscription.user_id,
+            old_device_limit,
+            device_limit,
+        )
+
+        return subscription
 
     # ============================================================
     # PURCHASE

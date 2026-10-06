@@ -125,7 +125,7 @@ export async function getSubscriptionUsage(
 }
 
 export type SubscriptionDevice = {
-    id: number
+    id: string
     model: string | null
     os: string | null
     os_version: string | null
@@ -146,5 +146,52 @@ export async function getSubscriptionDevices(
 ): Promise<SubscriptionDevices> {
     return apiRequest<SubscriptionDevices>(
         `/subscription/${subscriptionId}/devices`,
+    )
+}
+
+export type DeleteSubscriptionDeviceResponse = {
+    status: string
+    subscription_id: number
+    hwid: string
+}
+
+
+export async function deleteSubscriptionDevice(
+    subscriptionId: number,
+    hwid: string,
+): Promise<DeleteSubscriptionDeviceResponse> {
+
+    return apiRequest<DeleteSubscriptionDeviceResponse>(
+        `/subscription/${subscriptionId}/devices/${encodeURIComponent(hwid)}`,
+        {
+            method: 'DELETE',
+        },
+    )
+}
+
+
+export type DeviceLimitResponse = {
+    subscription_id: number
+    device_limit: number
+    daily_price_kopecks: number
+    daily_price_rubles: number
+    paid_until: string | null
+    status: string
+}
+
+
+export async function setSubscriptionDeviceLimit(
+    subscriptionId: number,
+    deviceLimit: number,
+): Promise<DeviceLimitResponse> {
+
+    return apiRequest<DeviceLimitResponse>(
+        `/subscription/${subscriptionId}/device-limit`,
+        {
+            method: 'POST',
+            body: JSON.stringify({
+                device_limit: deviceLimit,
+            }),
+        },
     )
 }

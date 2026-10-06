@@ -58,6 +58,30 @@ class SubscriptionChecker:
                 )
 
 
+                # После окончания старой fixed-подписки
+                # автоматически переводим пользователя
+                # на оплату с баланса.
+                from app.services.payment_service import (
+                    payment_service,
+                )
+
+                balance_result = (
+                    await payment_service
+                    .activate_balance_access(
+                        subscription.user_id
+                    )
+                )
+
+                logger.info(
+                    "Fixed to balance transition "
+                    "user={} fixed_subscription={} "
+                    "result={}",
+                    subscription.user_id,
+                    subscription.id,
+                    balance_result,
+                )
+
+
             except Exception:
 
                 logger.exception(

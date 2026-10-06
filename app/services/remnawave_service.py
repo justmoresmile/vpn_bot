@@ -13,7 +13,7 @@ DEFAULT_SQUAD_UUID = (
     "7ca43779-d4f6-4a5b-8fc2-6bee4f2a7be3"
 )
 
-DEFAULT_HWID_DEVICE_LIMIT = 2
+DEFAULT_HWID_DEVICE_LIMIT = 1
 
 
 class RemnawaveService:
@@ -101,6 +101,37 @@ class RemnawaveService:
             )
 
         return user
+
+    # ==========================================================
+    # DELETE USER
+    # ==========================================================
+
+    def delete_user(
+        self,
+        justvpn_user_id: int,
+    ) -> bool:
+
+        user = self.get_user(
+            justvpn_user_id
+        )
+
+        if user is None:
+            return False
+
+        remnawave_user_id = user.get(
+            "id"
+        )
+
+        if not remnawave_user_id:
+            raise RuntimeError(
+                "Remnawave user id is missing"
+            )
+
+        remnawave_client.delete_user(
+            int(remnawave_user_id)
+        )
+
+        return True
 
     # ==========================================================
     # CREATE USER
@@ -603,6 +634,36 @@ class RemnawaveService:
                 str(
                     user["id"]
                 )
+            )
+        )
+
+        return self._unwrap(
+            data
+        )
+
+
+    def delete_device(
+        self,
+        justvpn_user_id: int,
+        hwid: str,
+    ) -> Any:
+
+        user = self.get_user(
+            justvpn_user_id
+        )
+
+        if user is None:
+            raise ValueError(
+                "Remnawave user not found"
+            )
+
+        data = (
+            remnawave_client
+            .delete_device(
+                user_id=int(
+                    user["id"]
+                ),
+                hwid=hwid,
             )
         )
 

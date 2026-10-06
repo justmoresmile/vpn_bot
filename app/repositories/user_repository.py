@@ -270,6 +270,66 @@ class UsersRepository:
         return cursor.rowcount == 1
 
     # ==============================
+    # CLAIM TRIAL FINISH
+    # ==============================
+
+    @staticmethod
+    def claim_trial_finish(
+        user_id: int,
+        current_ends_at: datetime,
+        finished_at: datetime,
+    ) -> bool:
+
+        cursor = db.execute(
+            """
+            UPDATE users
+            SET trial_ends_at = ?
+            WHERE
+                id = ?
+                AND trial_used = 1
+                AND trial_ends_at = ?
+                AND trial_ends_at > ?
+            """,
+            (
+                int(finished_at.timestamp()),
+                user_id,
+                int(current_ends_at.timestamp()),
+                int(finished_at.timestamp()),
+            ),
+        )
+
+        return cursor.rowcount == 1
+
+    # ==============================
+    # RESTORE TRIAL FINISH
+    # ==============================
+
+    @staticmethod
+    def restore_trial_finish(
+        user_id: int,
+        finished_at: datetime,
+        original_ends_at: datetime,
+    ) -> bool:
+
+        cursor = db.execute(
+            """
+            UPDATE users
+            SET trial_ends_at = ?
+            WHERE
+                id = ?
+                AND trial_used = 1
+                AND trial_ends_at = ?
+            """,
+            (
+                int(original_ends_at.timestamp()),
+                user_id,
+                int(finished_at.timestamp()),
+            ),
+        )
+
+        return cursor.rowcount == 1
+
+    # ==============================
     # UPDATE PROFILE
     # ==============================
 

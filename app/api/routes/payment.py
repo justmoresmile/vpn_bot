@@ -11,6 +11,7 @@ from app.logger import logger
 
 from app.services.payment_service import (
     payment_service,
+    PaymentProviderError,
 )
 
 from app.api.dependencies.auth import (
@@ -18,6 +19,19 @@ from app.api.dependencies.auth import (
 )
 
 from app.domain.user import User
+
+from app.repositories.wallet_repository import (
+    wallet_repo,
+)
+
+from app.repositories.subscription_repository import (
+    subscription_repo,
+)
+from app.services.pricing_service import (
+    get_daily_price_kopecks,
+    MAX_DEVICE_LIMIT,
+    TRIAL_DEVICE_LIMIT,
+)
 
 
 router = APIRouter(
@@ -33,6 +47,99 @@ class BalanceTopupRequest(BaseModel):
     )
 
 
+
+
+@router.get(
+    "/wallet"
+)
+async def get_wallet(
+    user: User = Depends(
+        get_current_user
+    ),
+):
+    balance_kopecks = (
+        wallet_repo.get_balance(
+            user.id
+        )
+    )
+
+    subscriptions = (
+        subscription_repo.get_by_user(
+            user.id
+        )
+    )
+
+    balance_subscription = next(
+        (
+            subscription
+            for subscription
+            in subscriptions
+            if (
+                subscription.billing_mode
+                == "balance"
+                and subscription.status.value
+                != "deleted"
+            )
+        ),
+        None,
+    )
+
+    device_limit = (
+        balance_subscription.device_limit
+        if balance_subscription
+        else TRIAL_DEVICE_LIMIT
+    )
+
+    daily_price_kopecks = (
+        get_daily_price_kopecks(
+            device_limit
+        )
+    )
+
+    return {
+        "balance_kopecks": (
+            balance_kopecks
+        ),
+        "balance_rubles": (
+            balance_kopecks / 100
+        ),
+        "device_limit": (
+            device_limit
+        ),
+        "daily_price_kopecks": (
+            daily_price_kopecks
+        ),
+        "daily_price_rubles": (
+            daily_price_kopecks / 100
+        ),
+        "days_available": (
+            balance_kopecks
+            // daily_price_kopecks
+        ),
+        "max_devices": (
+            MAX_DEVICE_LIMIT
+        ),
+    }
+
+
+@router.get(
+    "/history"
+)
+async def get_wallet_history(
+    user: User = Depends(
+        get_current_user
+    ),
+):
+    transactions = (
+        wallet_repo.get_transactions(
+            user_id=user.id,
+            limit=50,
+        )
+    )
+
+    return {
+        "items": transactions,
+    }
 
 
 @router.post(
@@ -54,6 +161,15 @@ async def create_balance_topup(
         raise HTTPException(
             status_code=400,
             detail=str(exc),
+        )
+
+    except PaymentProviderError:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Платёжный сервис временно недоступен. "
+                "Попробуйте ещё раз позже."
+            ),
         )
 
     return {

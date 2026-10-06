@@ -15,6 +15,11 @@ from app.services.subscription_service import subscription_service
 import asyncio
 
 
+class PaymentProviderError(Exception):
+    """Ошибка внешнего платёжного провайдера."""
+    pass
+
+
 class PaymentService:
 
 
@@ -122,14 +127,29 @@ class PaymentService:
             amount_rubles * 100
         )
 
-        payment = await asyncio.to_thread(
-            yookassa_client.create_payment,
-            amount=amount_rubles,
-            description=(
-                f"Пополнение баланса JustVPN "
-                f"на {amount_rubles} руб."
-            ),
-        )
+        try:
+
+            payment = await asyncio.to_thread(
+                yookassa_client.create_payment,
+                amount=amount_rubles,
+                description=(
+                    f"Пополнение баланса JustVPN "
+                    f"на {amount_rubles} руб."
+                ),
+            )
+
+        except Exception as exc:
+
+            logger.exception(
+                "YooKassa topup creation failed "
+                "user={} amount={}",
+                user_id,
+                amount_rubles,
+            )
+
+            raise PaymentProviderError(
+                "Payment provider is temporarily unavailable"
+            ) from exc
 
         entity = Payment(
             id=None,
@@ -199,13 +219,32 @@ class PaymentService:
         )
 
         # Уже есть balance-подписка.
+        # Новую никогда не создаём поверх существующей,
+        # даже если автобиллинг отключён администратором.
         for subscription in subscriptions:
             if (
                 subscription.billing_mode == "balance"
                 and subscription.status
                 != SubscriptionStatus.DELETED
-                and subscription.billing_enabled
             ):
+
+                if not subscription.billing_enabled:
+
+                    logger.info(
+                        "Skip balance activation "
+                        "user={} reason=billing_disabled "
+                        "subscription={}",
+                        user_id,
+                        subscription.id,
+                    )
+
+                    return {
+                        "status": "billing_disabled",
+                        "subscription_id": (
+                            subscription.id
+                        ),
+                    }
+
                 return await billing_service.process_subscription(
                     subscription.id
                 )

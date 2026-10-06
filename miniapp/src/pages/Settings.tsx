@@ -1,8 +1,9 @@
+import {
+    useRef,
+} from 'react'
+
 import { useTheme } from '../theme/ThemeContext'
 import { themes } from '../theme/themes'
-import { useAuth } from '../context/AuthContext'
-
-import justfastvpnIcon from '../assets/justfastvpn-icon.png'
 
 
 type SettingsProps = {
@@ -25,18 +26,124 @@ function Settings({
         setMode,
     } = useTheme()
 
-    const {
-        logout,
-    } = useAuth()
+    const colorBarRef =
+        useRef<HTMLDivElement | null>(null)
 
 
-    function handleLogout() {
+    function hsvToHex(
+        hue: number,
+        saturation: number,
+        value: number,
+    ) {
 
-        logout()
+        const chroma =
+            value * saturation
 
-        window.location.reload()
+        const section =
+            hue / 60
+
+        const x =
+            chroma
+            * (
+                1
+                - Math.abs(
+                    section % 2 - 1,
+                )
+            )
+
+        let red = 0
+        let green = 0
+        let blue = 0
+
+        if (section >= 0 && section < 1) {
+            red = chroma
+            green = x
+        } else if (
+            section >= 1
+            && section < 2
+        ) {
+            red = x
+            green = chroma
+        } else if (
+            section >= 2
+            && section < 3
+        ) {
+            green = chroma
+            blue = x
+        } else if (
+            section >= 3
+            && section < 4
+        ) {
+            green = x
+            blue = chroma
+        } else if (
+            section >= 4
+            && section < 5
+        ) {
+            red = x
+            blue = chroma
+        } else {
+            red = chroma
+            blue = x
+        }
+
+        const match =
+            value - chroma
+
+        const toHex = (
+            channel: number,
+        ) =>
+            Math.round(
+                (channel + match) * 255,
+            )
+                .toString(16)
+                .padStart(2, '0')
+
+        return `#${
+            toHex(red)
+        }${
+            toHex(green)
+        }${
+            toHex(blue)
+        }`
     }
 
+
+    function selectColor(
+        clientX: number,
+    ) {
+
+        const bar =
+            colorBarRef.current
+
+        if (!bar) {
+            return
+        }
+
+        const rect =
+            bar.getBoundingClientRect()
+
+        const position =
+            Math.max(
+                0,
+                Math.min(
+                    1,
+                    (clientX - rect.left)
+                    / rect.width,
+                ),
+            )
+
+        const hue =
+            position * 360
+
+        setAccent(
+            hsvToHex(
+                hue,
+                1,
+                1,
+            ),
+        )
+    }
 
     return (
         <div className="settings-page">
@@ -115,51 +222,87 @@ function Settings({
 
                 </div>
 
-            </section>
+                <div
+                    style={{
+                        marginTop: 18,
+                    }}
+                >
 
-
-            <section className="settings-section">
-
-                <h2>
-                    Свой цвет
-                </h2>
-
-                <div className="custom-color-card">
-
-                    <div>
-
-                        <strong>
-                            Акцентный цвет
-                        </strong>
-
-                        <span>
-                            Выберите любой цвет
-                        </span>
-
+                    <div
+                        className="setting-description"
+                        style={{
+                            marginBottom: 10,
+                        }}
+                    >
+                        Свой цвет
                     </div>
 
-                    <label className="color-picker">
+                    <div
+                        ref={colorBarRef}
+                        onPointerDown={(event) => {
 
-                        <span
-                            style={{
-                                background:
-                                    accent,
-                            }}
-                        />
+                            event.currentTarget
+                                .setPointerCapture(
+                                    event.pointerId,
+                                )
 
-                        <input
-                            type="color"
-                            value={accent}
-                            onChange={(event) =>
-                                setAccent(
-                                    event.target.value,
+                            selectColor(
+                                event.clientX,
+                            )
+                        }}
+                        onPointerMove={(event) => {
+
+                            if (
+                                event.currentTarget
+                                    .hasPointerCapture(
+                                        event.pointerId,
+                                    )
+                            ) {
+                                selectColor(
+                                    event.clientX,
                                 )
                             }
-                        />
+                        }}
+                        onPointerUp={(event) => {
 
-                    </label>
+                            if (
+                                event.currentTarget
+                                    .hasPointerCapture(
+                                        event.pointerId,
+                                    )
+                            ) {
+                                event.currentTarget
+                                    .releasePointerCapture(
+                                        event.pointerId,
+                                    )
+                            }
+                        }}
+                        style={{
+                            width: '100%',
+                            height: 34,
+                            borderRadius: 17,
+                            cursor: 'pointer',
+                            touchAction: 'none',
+                            background: `
+                                linear-gradient(
+                                    90deg,
+                                    #ff0000 0%,
+                                    #ffff00 16.66%,
+                                    #00ff00 33.33%,
+                                    #00ffff 50%,
+                                    #0000ff 66.66%,
+                                    #ff00ff 83.33%,
+                                    #ff0000 100%
+                                )
+                            `,
+                            boxShadow:
+                                'inset 0 0 0 1px rgba(127,127,127,0.18)',
+                            userSelect: 'none',
+                        }}
+                    />
 
                 </div>
+
 
             </section>
 
@@ -257,76 +400,11 @@ function Settings({
             </section>
 
 
-            <div className="settings-preview">
-
-                <div className="preview-label">
-                    Предпросмотр
-                </div>
-
-                <div className="preview-card">
-
-                    <div className="preview-icon">
-
-                        <img
-                            src={justfastvpnIcon}
-                            alt="JustVPN"
-                        />
-
-                    </div>
-
-                    <div>
-
-                        <strong>
-                            JustVPN
-                        </strong>
-
-                        <span>
-                            Интерфейс настроен
-                        </span>
-
-                    </div>
-
-                    <div className="preview-status">
-                        Активен
-                    </div>
-
-                </div>
-
-            </div>
 
 
-            <button
-                className="settings-apply-button"
-                onClick={onClose}
-            >
-                Применить
-
-                <span>
-                    ✓
-                </span>
-            </button>
 
 
-            <button
-                onClick={handleLogout}
-                style={{
-                    width: '100%',
-                    marginTop: 14,
-                    padding: '14px 18px',
-                    borderRadius: 14,
-                    border:
-                        '1px solid rgba(220, 70, 70, 0.35)',
-                    background:
-                        'rgba(220, 70, 70, 0.08)',
-                    color:
-                        '#e05252',
-                    fontSize: 15,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                }}
-            >
-                Выйти из аккаунта
-            </button>
+
 
         </div>
     )

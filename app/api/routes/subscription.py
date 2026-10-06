@@ -7,8 +7,11 @@ from fastapi import (
 import qrcode
 
 from io import BytesIO
+from datetime import datetime, timezone
 
 from fastapi.responses import Response
+
+from pydantic import BaseModel, Field
 
 from app.api.schemas.subscription import (
     ConfigResponse,
@@ -38,6 +41,11 @@ from app.services.vpn_service import (
 from app.services.remnawave_service import (
     remnawave_service,
 )
+from app.services.pricing_service import (
+    get_daily_price_kopecks,
+    MIN_DEVICE_LIMIT,
+    MAX_DEVICE_LIMIT,
+)
 
 from app.config import settings
 
@@ -47,6 +55,13 @@ router = APIRouter(
     prefix="/subscription",
     tags=["Subscription"],
 )
+
+
+class DeviceLimitRequest(BaseModel):
+    device_limit: int = Field(
+        ge=MIN_DEVICE_LIMIT,
+        le=MAX_DEVICE_LIMIT,
+    )
 
 
 def check_subscription_owner(
@@ -177,6 +192,172 @@ async def renew_subscription(
         status=subscription.status.value,
         expires_at=subscription.expires_at,
     )
+
+
+@router.post(
+    "/{subscription_id}/device-limit"
+)
+async def set_subscription_device_limit(
+    subscription_id: int,
+    request: DeviceLimitRequest,
+    user: User = Depends(
+        get_current_user
+    ),
+):
+    subscription = (
+        subscription_service.get_by_id(
+            subscription_id
+        )
+    )
+
+    if subscription is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription not found",
+        )
+
+    check_subscription_owner(
+        subscription,
+        user,
+    )
+
+    # --------------------------------------------------------
+    # Во время активного trial бесплатно доступно 1 устройство
+    # --------------------------------------------------------
+
+    if user.trial_ends_at is not None:
+
+        trial_ends_at = user.trial_ends_at
+
+        if trial_ends_at.tzinfo is None:
+            trial_ends_at = (
+                trial_ends_at.replace(
+                    tzinfo=timezone.utc
+                )
+            )
+
+        now = datetime.now(
+            timezone.utc
+        )
+
+        if (
+            trial_ends_at > now
+            and request.device_limit > 1
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Во время пробного периода "
+                    "бесплатно доступно 1 устройство"
+                ),
+            )
+
+    # --------------------------------------------------------
+    # Нельзя уменьшить лимит ниже числа зарегистрированных
+    # устройств в Remnawave.
+    # --------------------------------------------------------
+
+    if (
+        subscription.provider == "remnawave"
+        and request.device_limit
+        < subscription.device_limit
+    ):
+
+        data = (
+            remnawave_service.get_devices(
+                subscription.user_id
+            )
+        )
+
+        remote_devices = (
+            data.get("devices", [])
+            if data
+            else []
+        ) or []
+
+        registered_count = len(
+            [
+                device
+                for device
+                in remote_devices
+                if device.get("hwid")
+            ]
+        )
+
+        if (
+            request.device_limit
+            < registered_count
+        ):
+
+            need_to_delete = (
+                registered_count
+                - request.device_limit
+            )
+
+            if need_to_delete == 1:
+                device_word = "устройство"
+            elif (
+                need_to_delete % 10
+                in (2, 3, 4)
+                and need_to_delete % 100
+                not in (12, 13, 14)
+            ):
+                device_word = "устройства"
+            else:
+                device_word = "устройств"
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Сначала удалите "
+                    f"{need_to_delete} "
+                    f"{device_word}"
+                ),
+            )
+
+
+    try:
+        subscription = (
+            await vpn_service.set_device_limit(
+                subscription=subscription,
+                device_limit=(
+                    request.device_limit
+                ),
+            )
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+    daily_price_kopecks = (
+        get_daily_price_kopecks(
+            subscription.device_limit
+        )
+    )
+
+    return {
+        "subscription_id": (
+            subscription.id
+        ),
+        "device_limit": (
+            subscription.device_limit
+        ),
+        "daily_price_kopecks": (
+            daily_price_kopecks
+        ),
+        "daily_price_rubles": (
+            daily_price_kopecks / 100
+        ),
+        "paid_until": (
+            subscription.paid_until
+        ),
+        "status": (
+            subscription.status.value
+        ),
+    }
 
 
 @router.get(
@@ -543,6 +724,116 @@ async def get_subscription_devices(
         limit=subscription.device_limit,
         devices=result,
     )
+
+
+@router.delete(
+    "/{subscription_id}/devices/{hwid}"
+)
+async def delete_subscription_device(
+    subscription_id: int,
+    hwid: str,
+    user: User = Depends(
+        get_current_user
+    ),
+):
+
+    subscription = (
+        subscription_service.get_by_id(
+            subscription_id
+        )
+    )
+
+    if subscription is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription not found",
+        )
+
+    check_subscription_owner(
+        subscription,
+        user,
+    )
+
+    if subscription.provider != "remnawave":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Device deletion is only available "
+                "for Remnawave subscriptions"
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Проверяем, что HWID действительно принадлежит
+    # текущему пользователю.
+    # --------------------------------------------------------
+
+    devices_data = (
+        remnawave_service.get_devices(
+            subscription.user_id
+        )
+    )
+
+    remote_devices = (
+        devices_data.get("devices", [])
+        if devices_data
+        else []
+    ) or []
+
+    hwid_exists = any(
+        str(device.get("hwid")) == hwid
+        for device in remote_devices
+        if device.get("hwid")
+    )
+
+    if not hwid_exists:
+        raise HTTPException(
+            status_code=404,
+            detail="Device not found",
+        )
+
+
+    try:
+
+        result = remnawave_service.delete_device(
+            justvpn_user_id=(
+                subscription.user_id
+            ),
+            hwid=hwid,
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Failed to delete Remnawave device "
+            "subscription={} user={} hwid={}",
+            subscription.id,
+            subscription.user_id,
+            hwid,
+        )
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Не удалось удалить устройство. "
+                "Попробуйте ещё раз позже."
+            ),
+        )
+
+    return {
+        "status": "deleted",
+        "subscription_id": (
+            subscription.id
+        ),
+        "hwid": hwid,
+        "provider_result": result,
+    }
 
 
 @router.get(
