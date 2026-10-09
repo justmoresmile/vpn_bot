@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routers import router
 from app.bootstrap import init_ssl
+from app.database.schema import create_tables
 
 from app.services.vpn_service import vpn_service
 
@@ -19,6 +20,8 @@ init_ssl()
 async def lifespan(
     app: FastAPI,
 ):
+
+    create_tables()
 
     try:
         yield

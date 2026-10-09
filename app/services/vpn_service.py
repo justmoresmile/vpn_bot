@@ -315,6 +315,24 @@ class VPNService:
         ):
             return subscription
 
+        # Повторно менять количество устройств можно
+        # только после окончания текущего расчётного периода.
+        if subscription.device_limit_locked_until is not None:
+            locked_until_ts = int(
+                subscription.device_limit_locked_until.timestamp()
+            )
+            now_ts = int(
+                datetime.now().timestamp()
+            )
+
+            if now_ts < locked_until_ts:
+                raise ValueError(
+                    "Количество устройств уже менялось "
+                    "в текущем расчётном периоде. "
+                    "Следующая смена будет доступна после "
+                    f"{subscription.device_limit_locked_until.strftime('%d.%m.%Y %H:%M')}"
+                )
+
         expire_at = (
             subscription.paid_until
             or subscription.expires_at
@@ -388,6 +406,13 @@ class VPNService:
 
         subscription.device_limit = (
             device_limit
+        )
+
+        # Блокируем следующую смену до текущего paid_until.
+        # Если paid_until отсутствует, используем expires_at.
+        subscription.device_limit_locked_until = (
+            subscription.paid_until
+            or subscription.expires_at
         )
 
         subscription_repo.update(

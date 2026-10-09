@@ -35,6 +35,10 @@ class Subscription:
 
     device_limit: int = 1
 
+    # После изменения тарифа повторная смена
+    # запрещена до следующего расчётного периода.
+    device_limit_locked_until: datetime | None = None
+
     created_at: datetime | None = None
     expires_at: datetime | None = None
 

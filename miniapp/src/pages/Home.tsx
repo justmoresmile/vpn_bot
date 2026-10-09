@@ -236,10 +236,10 @@ function HomeScreen({
       }
 
       /*
-       * Во время trial 1-2 устройства остаются
-       * бесплатными.
+       * Во время trial бесплатно доступно
+       * 1 устройство.
        *
-       * Выбор 3+ означает досрочный переход
+       * Выбор 2+ означает досрочный переход
        * на платный режим.
        */
       if (
@@ -487,40 +487,6 @@ function HomeScreen({
     subscription?.status === 'active'
 
 
-  const trialRemainingSeconds =
-    trial?.active
-      ? Math.max(
-        0,
-        trial.remaining_seconds,
-      )
-      : 0
-
-
-  const trialDays =
-    Math.floor(
-      trialRemainingSeconds /
-      86400,
-    )
-
-
-  const trialHours =
-    Math.floor(
-      (
-        trialRemainingSeconds %
-        86400
-      ) /
-      3600,
-    )
-
-
-  const dailyPrice =
-    wallet?.daily_price_rubles ?? 4
-
-
-  const daysAvailable =
-    wallet?.days_available ?? 0
-
-
   const [
     now,
     setNow,
@@ -548,6 +514,98 @@ function HomeScreen({
     }
 
   }, [])
+
+
+  const trialEndsAtValue =
+    trial?.active && trial.ends_at
+      ? (
+          trial.ends_at.endsWith('Z')
+          || /[+-]\d{2}:\d{2}$/.test(
+            trial.ends_at,
+          )
+        )
+        ? trial.ends_at
+        : `${trial.ends_at}Z`
+      : null
+
+
+  const trialEndsAtMs =
+    trialEndsAtValue
+      ? new Date(
+          trialEndsAtValue,
+        ).getTime()
+      : 0
+
+
+  const trialRemainingSeconds =
+    trial?.active && trialEndsAtMs > 0
+      ? Math.max(
+          0,
+          Math.floor(
+            (
+              trialEndsAtMs
+              - now
+            ) / 1000,
+          ),
+        )
+      : 0
+
+
+  const trialDays =
+    Math.floor(
+      trialRemainingSeconds /
+      86400,
+    )
+
+
+  const trialHours =
+    Math.floor(
+      (
+        trialRemainingSeconds %
+        86400
+      ) /
+      3600,
+    )
+
+
+  const trialMinutes =
+    Math.floor(
+      (
+        trialRemainingSeconds %
+        3600
+      ) /
+      60,
+    )
+
+
+  const trialSeconds =
+    trialRemainingSeconds % 60
+
+
+  const trialTime =
+    [
+      trialHours,
+      trialMinutes,
+      trialSeconds,
+    ]
+      .map(
+        (value) =>
+          String(
+            value,
+          ).padStart(
+            2,
+            '0',
+          ),
+      )
+      .join(':')
+
+
+  const dailyPrice =
+    wallet?.daily_price_rubles ?? 4
+
+
+  const daysAvailable =
+    wallet?.days_available ?? 0
 
 
   const paidUntilValue =
@@ -742,7 +800,7 @@ function HomeScreen({
             }}
           >
             {trial?.active
-              ? `${String(trialHours).padStart(2, '0')}:00:00`
+              ? trialTime
               : vpnActive
                 ? accessTime
                 : '00:00:00'

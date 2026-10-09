@@ -246,6 +246,10 @@ class TrialService:
             subscription.device_limit
         )
 
+        original_device_limit_locked_until = (
+            subscription.device_limit_locked_until
+        )
+
         claimed = (
             users_repo.claim_trial_finish(
                 user_id=user_id,
@@ -351,6 +355,10 @@ class TrialService:
                 new_paid_until
             )
 
+            subscription.device_limit_locked_until = (
+                new_paid_until
+            )
+
             subscription.expires_at = (
                 new_paid_until
             )
@@ -401,6 +409,10 @@ class TrialService:
 
             subscription.device_limit = (
                 original_device_limit
+            )
+
+            subscription.device_limit_locked_until = (
+                original_device_limit_locked_until
             )
 
             try:

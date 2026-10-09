@@ -42,7 +42,17 @@ class SubscriptionRepository:
             device_limit=(
                 row["device_limit"]
                 if "device_limit" in row.keys()
-                else 2
+                else 1
+            ),
+            device_limit_locked_until=(
+                datetime.fromtimestamp(
+                    row["device_limit_locked_until"]
+                )
+                if (
+                    "device_limit_locked_until" in row.keys()
+                    and row["device_limit_locked_until"]
+                )
+                else None
             ),
             created_at=datetime.fromtimestamp(
                 row["created_at"]
@@ -391,6 +401,7 @@ class SubscriptionRepository:
                 config = ?,
                 status = ?,
                 device_limit = ?,
+                device_limit_locked_until = ?,
                 expires_at = ?,
                 billing_mode = ?,
                 paid_until = ?,
@@ -410,6 +421,13 @@ class SubscriptionRepository:
                 subscription.config,
                 subscription.status,
                 subscription.device_limit,
+                (
+                    int(
+                        subscription.device_limit_locked_until.timestamp()
+                    )
+                    if subscription.device_limit_locked_until
+                    else None
+                ),
                 int(
                     subscription.expires_at.timestamp()
                 ),

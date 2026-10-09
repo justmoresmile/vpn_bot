@@ -269,6 +269,12 @@ def create_tables():
             ADD COLUMN billing_enabled INTEGER NOT NULL DEFAULT 1
         """)
 
+    if "device_limit_locked_until" not in subscription_columns:
+        db.execute("""
+            ALTER TABLE subscriptions
+            ADD COLUMN device_limit_locked_until INTEGER
+        """)
+
     # =========================
     # DEVICES
     # =========================
