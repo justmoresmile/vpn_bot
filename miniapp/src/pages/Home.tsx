@@ -703,6 +703,106 @@ function HomeScreen({
       .join(':')
 
 
+  const normalizeApiDate = (
+    value: string | null | undefined,
+  ): string | null => {
+
+    if (!value) {
+      return null
+    }
+
+    if (
+      value.endsWith('Z')
+      || /[+-]\d{2}:\d{2}$/.test(value)
+    ) {
+      return value
+    }
+
+    return `${value}Z`
+  }
+
+
+  const formatBillingDate = (
+    value: string | null | undefined,
+  ): string | null => {
+
+    const normalized =
+      normalizeApiDate(value)
+
+    if (!normalized) {
+      return null
+    }
+
+    const date = new Date(
+      normalized,
+    )
+
+    if (
+      Number.isNaN(
+        date.getTime(),
+      )
+    ) {
+      return null
+    }
+
+    return date.toLocaleString(
+      'ru-RU',
+      {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      },
+    )
+  }
+
+
+  const nextBillingMs =
+    subscription?.paid_until
+      ? new Date(
+          normalizeApiDate(
+            subscription.paid_until,
+          ) ?? '',
+        ).getTime()
+      : 0
+
+
+  const deviceLimitLockedUntilMs =
+    subscription?.device_limit_locked_until
+      ? new Date(
+          normalizeApiDate(
+            subscription.device_limit_locked_until,
+          ) ?? '',
+        ).getTime()
+      : 0
+
+
+  const nextBillingText =
+    formatBillingDate(
+      subscription?.paid_until,
+    )
+
+
+  const deviceLimitLockedUntilText =
+    formatBillingDate(
+      subscription?.device_limit_locked_until,
+    )
+
+
+  const showNextBilling =
+    !trial?.active
+    && vpnActive
+    && nextBillingMs > now
+    && nextBillingText !== null
+
+
+  const showDeviceLimitLock =
+    !trial?.active
+    && deviceLimitLockedUntilMs > now
+    && deviceLimitLockedUntilText !== null
+
+
   return (
     <>
 
@@ -1046,6 +1146,67 @@ function HomeScreen({
               )}
 
             </div>
+
+
+            {(showNextBilling || showDeviceLimitLock) && (
+
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: '13px 14px',
+                  borderRadius: 16,
+                  background:
+                    'rgba(127, 127, 127, 0.07)',
+                  border:
+                    '1px solid rgba(127, 127, 127, 0.10)',
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  color:
+                    'var(--text-secondary)',
+                }}
+              >
+
+                {showNextBilling && (
+
+                  <div>
+                    Следующее списание{' '}
+                    <strong
+                      style={{
+                        color: 'var(--text)',
+                      }}
+                    >
+                      {nextBillingText}
+                    </strong>
+                  </div>
+
+                )}
+
+
+                {showDeviceLimitLock && (
+
+                  <div
+                    style={{
+                      marginTop:
+                        showNextBilling
+                          ? 6
+                          : 0,
+                    }}
+                  >
+                    Изменить количество устройств можно после{' '}
+                    <strong
+                      style={{
+                        color: 'var(--text)',
+                      }}
+                    >
+                      {deviceLimitLockedUntilText}
+                    </strong>
+                  </div>
+
+                )}
+
+              </div>
+
+            )}
 
 
             {deviceLimitError && (

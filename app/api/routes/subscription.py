@@ -156,45 +156,6 @@ async def get_config(
 
 
 @router.post(
-    "/{subscription_id}/renew",
-    response_model=RenewResponse,
-)
-async def renew_subscription(
-    subscription_id: int,
-    days: int = 30,
-    user: User = Depends(
-        get_current_user
-    ),
-):
-
-    subscription = subscription_service.get_by_id(
-        subscription_id
-    )
-
-    if subscription is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Subscription not found",
-        )
-
-    check_subscription_owner(
-        subscription,
-        user,
-    )
-
-    subscription = await vpn_service.renew(
-        subscription_id,
-        days,
-    )
-
-    return RenewResponse(
-        id=subscription.id,
-        status=subscription.status.value,
-        expires_at=subscription.expires_at,
-    )
-
-
-@router.post(
     "/{subscription_id}/device-limit"
 )
 async def set_subscription_device_limit(

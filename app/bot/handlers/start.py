@@ -2,38 +2,29 @@ from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 
-from app.bot.clients.api_client import api_client
-from app.bot.keyboards.main_menu import main_menu
-from app.bot.keyboards.miniapp import miniapp_keyboard
+from app.bot.keyboards.miniapp import (
+    miniapp_keyboard,
+)
 
 
 router = Router()
 
 
 WELCOME_TEXT = """
-🚀 <b>Добро пожаловать!</b>
+👋 <b>Добро пожаловать в JustVPN</b>
 
-Ваш быстрый и безопасный VPN уже готов к подключению.
+Быстрый и удобный VPN без сложных настроек.
 
-🔐 Защищённое соединение WireGuard
-⚡ Мгновенная активация после оплаты
-📱 Поддержка всех популярных устройств
-🌍 Стабильный доступ без ограничений
+🔐 Безопасное подключение
+📱 Управление устройствами
+🌍 Выбор VPN-сервера
+💳 Баланс и тариф в одном месте
+💬 Поддержка прямо в приложении
 
-Чтобы начать, выберите в меню:
-🚀 Получить VPN
-"""
+Всё управление JustVPN доступно
+в нашем приложении.
 
-
-RETURN_TEXT = """
-👋 <b>С возвращением!</b>
-
-Ваш VPN всегда под рукой.
-
-🔐 Проверить активную подписку:
-👤 Мой VPN
-
-Выберите действие ниже 👇
+Нажмите кнопку ниже 👇
 """
 
 
@@ -42,33 +33,8 @@ async def start(
     message: Message,
 ):
 
-    try:
-
-        result = await api_client.sync_user(
-            telegram_id=message.from_user.id,
-            username=message.from_user.username,
-            first_name=message.from_user.first_name,
-        )
-
-        text = (
-            WELCOME_TEXT
-            if result["created"]
-            else RETURN_TEXT
-        )
-
-        await message.answer(
-            text,
-            parse_mode="HTML",
-            reply_markup=miniapp_keyboard,
-        )
-
-        await message.answer(
-            "Выберите действие:",
-            reply_markup=main_menu,
-        )
-
-    except Exception:
-
-        await message.answer(
-            "❌ Не удалось подключиться к серверу."
-        )
+    await message.answer(
+        WELCOME_TEXT,
+        parse_mode="HTML",
+        reply_markup=miniapp_keyboard,
+    )

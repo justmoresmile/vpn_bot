@@ -28,6 +28,10 @@ class SubscriptionShortResponse(BaseModel):
 
     expires_at: datetime
 
+    paid_until: datetime | None = None
+
+    device_limit_locked_until: datetime | None = None
+
     client_email: str | None = None
 
     server_name: str | None = None

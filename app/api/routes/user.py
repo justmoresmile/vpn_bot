@@ -89,6 +89,10 @@ async def my_subscriptions(
                 protocol=s.protocol,
                 status=s.status.value,
                 expires_at=s.expires_at,
+                paid_until=s.paid_until,
+                device_limit_locked_until=(
+                    s.device_limit_locked_until
+                ),
                 client_email=s.client_email,
                 server_name=(
                     server.name

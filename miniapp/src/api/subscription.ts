@@ -9,6 +9,8 @@ export type Subscription = {
     protocol: string
     status: string
     expires_at: string
+    paid_until: string | null
+    device_limit_locked_until: string | null
     client_email: string | null
     server_name: string | null
     server_country: string | null
@@ -27,13 +29,6 @@ export type SubscriptionDetails = {
 
 export type ConfigResponse = {
     config: string
-}
-
-
-export type RenewResponse = {
-    id: number
-    status: string
-    expires_at: string
 }
 
 
@@ -71,20 +66,6 @@ export async function getSubscriptionLink(
 
     return apiRequest<ConfigResponse>(
         `/subscription/${subscriptionId}/link`,
-    )
-}
-
-
-export async function renewSubscription(
-    subscriptionId: number,
-    days = 30,
-): Promise<RenewResponse> {
-
-    return apiRequest<RenewResponse>(
-        `/subscription/${subscriptionId}/renew?days=${days}`,
-        {
-            method: 'POST',
-        },
     )
 }
 

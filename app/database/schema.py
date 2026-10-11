@@ -276,6 +276,185 @@ def create_tables():
         """)
 
     # =========================
+    # SUPPORT TICKETS
+    # =========================
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS support_tickets
+        (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            user_id INTEGER NOT NULL,
+
+            subject TEXT NOT NULL,
+
+            category TEXT,
+
+            status TEXT NOT NULL
+                DEFAULT 'open',
+
+            created_at INTEGER NOT NULL
+                DEFAULT (strftime('%s','now')),
+
+            updated_at INTEGER NOT NULL
+                DEFAULT (strftime('%s','now')),
+
+            closed_at INTEGER,
+
+            FOREIGN KEY(user_id)
+                REFERENCES users(id)
+        )
+    """)
+
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_support_tickets_user_id
+        ON support_tickets(user_id)
+    """)
+
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_support_tickets_status
+        ON support_tickets(status)
+    """)
+
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_support_tickets_updated_at
+        ON support_tickets(updated_at)
+    """)
+
+    # =========================
+    # SUPPORT MESSAGES
+    # =========================
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS support_messages
+        (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            ticket_id INTEGER NOT NULL,
+
+            sender_type TEXT NOT NULL,
+
+            sender_id INTEGER,
+
+            message TEXT NOT NULL,
+
+            is_read INTEGER NOT NULL
+                DEFAULT 0,
+
+            created_at INTEGER NOT NULL
+                DEFAULT (strftime('%s','now')),
+
+            FOREIGN KEY(ticket_id)
+                REFERENCES support_tickets(id)
+        )
+    """)
+
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_support_messages_ticket_id
+        ON support_messages(ticket_id)
+    """)
+
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_support_messages_created_at
+        ON support_messages(created_at)
+    """)
+
+    # =========================
+    # SUPPORT TELEGRAM TOPICS
+    support_ticket_columns = {
+        row["name"]
+        for row in db.fetchall(
+            "PRAGMA table_info(support_tickets)"
+        )
+    }
+
+    if (
+        "telegram_thread_id"
+        not in support_ticket_columns
+    ):
+        db.execute(
+            """
+            ALTER TABLE support_tickets
+            ADD COLUMN telegram_thread_id INTEGER
+            """
+        )
+
+    # NOTIFICATIONS
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            related_type TEXT,
+            related_id INTEGER,
+            is_read INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+        """
+    )
+
+    db.execute(
+        """
+        CREATE INDEX IF NOT EXISTS
+        idx_notifications_user
+        ON notifications(user_id)
+        """
+    )
+
+    db.execute(
+        """
+        CREATE INDEX IF NOT EXISTS
+        idx_notifications_user_read
+        ON notifications(user_id, is_read)
+        """
+    )
+
+    # =========================
+    # NOTIFICATIONS MIGRATIONS
+    # =========================
+
+    notification_columns = {
+        row["name"]
+        for row in db.fetchall(
+            "PRAGMA table_info(notifications)"
+        )
+    }
+
+    if "event_key" not in notification_columns:
+        db.execute(
+            """
+            ALTER TABLE notifications
+            ADD COLUMN event_key TEXT
+            """
+        )
+
+    if "telegram_sent" not in notification_columns:
+        db.execute(
+            """
+            ALTER TABLE notifications
+            ADD COLUMN telegram_sent INTEGER
+            NOT NULL DEFAULT 0
+            """
+        )
+
+    db.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        idx_notifications_event_key
+        ON notifications(event_key)
+        WHERE event_key IS NOT NULL
+        """
+    )
+
     # DEVICES
     # =========================
 

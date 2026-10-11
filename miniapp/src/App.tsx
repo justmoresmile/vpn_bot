@@ -15,6 +15,10 @@ import BalanceScreen from './pages/Balance'
 
 import NotificationsScreen from './pages/Notifications'
 
+import {
+  getUnreadNotificationCount,
+} from './api/notifications'
+
 import SupportScreen from './pages/Support'
 
 import EmailAuthScreen from './components/auth/EmailAuthScreen'
@@ -248,6 +252,77 @@ function App() {
     setNotificationsOpen,
 
   ] = useState(false)
+
+
+  const [
+
+    unreadNotificationCount,
+
+    setUnreadNotificationCount,
+
+  ] = useState(0)
+
+
+  const [
+
+    supportTicketToOpen,
+
+    setSupportTicketToOpen,
+
+  ] = useState<number | null>(null)
+
+
+  useEffect(() => {
+
+    let cancelled = false
+
+
+    async function loadUnreadCount() {
+
+      try {
+
+        const result =
+          await getUnreadNotificationCount()
+
+        if (!cancelled) {
+          setUnreadNotificationCount(
+            result.count,
+          )
+        }
+
+      } catch (error) {
+
+        console.error(
+          'Failed to load unread notifications',
+          error,
+        )
+
+      }
+
+    }
+
+
+    void loadUnreadCount()
+
+
+    const timer =
+      window.setInterval(
+        () => {
+          void loadUnreadCount()
+        },
+        5000,
+      )
+
+
+    return () => {
+
+      cancelled = true
+
+      window.clearInterval(timer)
+
+    }
+
+  }, [])
 
 
 
@@ -1008,7 +1083,9 @@ function App() {
 
 
 
-            <span className="notification-dot" />
+            {unreadNotificationCount > 0 && (
+              <span className="notification-dot" />
+            )}
 
 
 
@@ -1270,6 +1347,38 @@ function App() {
 
             }
 
+            onOpenSupportTicket={(
+              ticketId,
+            ) => {
+
+              setSupportTicketToOpen(
+                ticketId,
+              )
+
+              setNotificationsOpen(false)
+              setSettingsOpen(false)
+
+              setActiveTab('support')
+
+            }}
+
+            onUnreadChanged={() => {
+
+              getUnreadNotificationCount()
+                .then((result) => {
+                  setUnreadNotificationCount(
+                    result.count,
+                  )
+                })
+                .catch((error) => {
+                  console.error(
+                    'Failed to refresh unread notifications',
+                    error,
+                  )
+                })
+
+            }}
+
           />
 
 
@@ -1486,7 +1595,11 @@ function App() {
 
             {activeTab === 'support' && (
 
-              <SupportScreen />
+              <SupportScreen
+                openTicketId={
+                  supportTicketToOpen
+                }
+              />
 
             )}
 

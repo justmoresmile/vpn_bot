@@ -7,10 +7,9 @@ from app.api.routes.user import router as user_router
 from app.api.routes.subscription import router as subscription_router
 from app.api.routes.vpn import router as vpn_router
 from app.api.routes.payment import router as payment_router
-from app.api.routes.purchase import router as purchase_router
-from app.api.routes.internal import router as internal_router
-from app.api.routes.admin import router as admin_router
 from app.api.routes.trial import router as trial_router
+from app.api.routes.support import router as support_router
+from app.api.routes.notification import router as notification_router
 
 
 router = APIRouter(
@@ -46,16 +45,13 @@ router.include_router(
     trial_router
 )
 
-
 router.include_router(
-    purchase_router
+    support_router
 )
 
 router.include_router(
-    internal_router
+    notification_router
 )
 
-router.include_router(
-    admin_router
-)
+
 

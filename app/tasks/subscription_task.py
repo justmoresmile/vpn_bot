@@ -14,8 +14,8 @@ from app.services.sync_service import (
 from app.services.payment_service import (
     payment_service,
 )
-from app.services.subscription_reminder_service import (
-    subscription_reminder_service,
+from app.services.subscription_alert_service import (
+    subscription_alert_service,
 )
 
 
@@ -65,12 +65,18 @@ async def subscription_task():
             )
 
         # ==============================================
-        # SUBSCRIPTION REMINDERS
+        # SUBSCRIPTION ALERTS
         # ==============================================
 
         try:
 
-            await subscription_reminder_service.run()
+            result = await subscription_alert_service.run()
+
+            if result["sent"] > 0:
+                logger.info(
+                    "Subscription alerts: {}",
+                    result,
+                )
 
         except Exception:
 

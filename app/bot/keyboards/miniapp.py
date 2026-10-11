@@ -11,7 +11,7 @@ miniapp_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [
             InlineKeyboardButton(
-                text="🚀 Открыть JustFastVPN",
+                text="🚀 Открыть JustVPN",
                 web_app=WebAppInfo(
                     url=settings.miniapp_url,
                 ),
