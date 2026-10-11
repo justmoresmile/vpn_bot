@@ -333,16 +333,39 @@ class VPNService:
                     f"{subscription.device_limit_locked_until.strftime('%d.%m.%Y %H:%M')}"
                 )
 
-        expire_at = (
+        paid_until = (
             subscription.paid_until
             or subscription.expires_at
         )
 
-        if expire_at is None:
+        if paid_until is None:
             raise ValueError(
                 "У подписки отсутствует дата "
                 "окончания оплаченного периода"
             )
+
+        from app.repositories.wallet_repository import (
+            wallet_repo,
+        )
+        from app.services.billing_service import (
+            billing_service,
+        )
+
+        balance_kopecks = int(
+            wallet_repo.get_balance(
+                subscription.user_id
+            )
+            or 0
+        )
+
+        expire_at = (
+            billing_service
+            .calculate_projected_expire_at(
+                paid_until=paid_until,
+                balance_kopecks=balance_kopecks,
+                device_limit=device_limit,
+            )
+        )
 
         # Запоминаем состояние до изменения.
         # Изменение device_limit не должно
@@ -413,6 +436,10 @@ class VPNService:
         subscription.device_limit_locked_until = (
             subscription.paid_until
             or subscription.expires_at
+        )
+
+        subscription.expires_at = (
+            expire_at
         )
 
         subscription_repo.update(

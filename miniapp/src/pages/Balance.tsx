@@ -281,8 +281,25 @@ function BalanceScreen({
         )
       }
 
-      window.location.href =
-        payment.confirmation_url
+      const tg = window.Telegram?.WebApp as
+        | {
+            openLink?: (
+              url: string,
+            ) => void
+          }
+        | undefined
+
+      if (tg?.openLink) {
+        tg.openLink(
+          payment.confirmation_url,
+        )
+      } else {
+        window.open(
+          payment.confirmation_url,
+          '_blank',
+          'noopener,noreferrer',
+        )
+      }
 
     } catch (error) {
 

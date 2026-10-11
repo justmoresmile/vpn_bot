@@ -9,6 +9,9 @@ from app.domain.enums.subscription_status import (
 from app.repositories.subscription_repository import (
     subscription_repo,
 )
+from app.repositories.wallet_repository import (
+    wallet_repo,
+)
 from app.services.remnawave_service import (
     remnawave_service,
 )
@@ -21,6 +24,111 @@ BILLING_PERIOD = timedelta(hours=24)
 
 
 class BillingService:
+
+    def calculate_projected_expire_at(
+        self,
+        *,
+        paid_until: datetime,
+        balance_kopecks: int,
+        device_limit: int,
+    ) -> datetime:
+
+        daily_price_kopecks = (
+            get_daily_price_kopecks(
+                device_limit
+            )
+        )
+
+        if daily_price_kopecks <= 0:
+            return paid_until
+
+        extra_days = (
+            max(
+                0,
+                int(balance_kopecks),
+            )
+            // daily_price_kopecks
+        )
+
+        return (
+            paid_until
+            + timedelta(
+                days=extra_days
+            )
+        )
+
+
+    async def refresh_balance_expiry(
+        self,
+        subscription_id: int,
+    ) -> datetime | None:
+
+        subscription = (
+            subscription_repo.get_by_id(
+                subscription_id
+            )
+        )
+
+        if subscription is None:
+            return None
+
+        if subscription.billing_mode != "balance":
+            return subscription.expires_at
+
+        paid_until = subscription.paid_until
+
+        if paid_until is None:
+            return subscription.expires_at
+
+        balance_kopecks = int(
+            wallet_repo.get_balance(
+                subscription.user_id
+            )
+            or 0
+        )
+
+        projected_expire_at = (
+            self.calculate_projected_expire_at(
+                paid_until=paid_until,
+                balance_kopecks=balance_kopecks,
+                device_limit=int(
+                    subscription.device_limit
+                    or 1
+                ),
+            )
+        )
+
+        remnawave_service.ensure_user(
+            justvpn_user_id=(
+                subscription.user_id
+            ),
+            expire_at=projected_expire_at,
+            hwid_device_limit=int(
+                subscription.device_limit
+                or 1
+            ),
+        )
+
+        subscription.expires_at = (
+            projected_expire_at
+        )
+
+        subscription_repo.update(
+            subscription
+        )
+
+        logger.info(
+            "Balance projected expiry refreshed "
+            "subscription={} user={} "
+            "paid_until={} projected_expire_at={}",
+            subscription.id,
+            subscription.user_id,
+            paid_until,
+            projected_expire_at,
+        )
+
+        return projected_expire_at
+
 
     def _atomic_charge_period(
         self,
@@ -584,6 +692,14 @@ class BillingService:
             charge["paid_until"]
         )
 
+        projected_expire_at = (
+            self.calculate_projected_expire_at(
+                paid_until=new_paid_until,
+                balance_kopecks=new_balance,
+                device_limit=device_limit,
+            )
+        )
+
         # --------------------------------------------------
         # После успешного DB claim обновляем Remnawave.
         #
@@ -595,7 +711,7 @@ class BillingService:
 
             remnawave_service.ensure_user(
                 justvpn_user_id=user_id,
-                expire_at=new_paid_until,
+                expire_at=projected_expire_at,
                 hwid_device_limit=(
                     device_limit
                 ),
@@ -651,6 +767,29 @@ class BillingService:
             )
 
             raise
+
+        try:
+            subscription = (
+                subscription_repo.get_by_id(
+                    subscription_id
+                )
+            )
+
+            if subscription is not None:
+                subscription.expires_at = (
+                    projected_expire_at
+                )
+
+                subscription_repo.update(
+                    subscription
+                )
+
+        except Exception:
+            logger.exception(
+                "Failed to save projected expiry "
+                "subscription={}",
+                subscription_id,
+            )
 
         billing_day_index = (
             int(

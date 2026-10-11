@@ -160,9 +160,19 @@ class PaymentService:
                         ),
                     }
 
-                return await billing_service.process_subscription(
+                result = await billing_service.process_subscription(
                     subscription.id
                 )
+
+                if (
+                    result.get("status")
+                    == "already_paid"
+                ):
+                    await billing_service.refresh_balance_expiry(
+                        subscription.id
+                    )
+
+                return result
 
         # Если существует действующая fixed-подписка,
         # не начинаем списывать баланс параллельно.
