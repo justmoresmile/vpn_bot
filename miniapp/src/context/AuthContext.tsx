@@ -7,8 +7,10 @@ import {
 } from 'react'
 
 import {
+    attachEmail,
     hasAccessToken,
     loginWithTelegram,
+    linkEmailWithTelegram,
     logout as logoutApi,
     requestEmailCode,
     verifyEmailCode,
@@ -23,6 +25,7 @@ import type { UserResponse } from '../api/user'
 type AuthMode =
     | 'loading'
     | 'authenticated'
+    | 'choice'
     | 'email'
 
 
@@ -32,11 +35,19 @@ type AuthContextValue = {
     error: string | null
     mode: AuthMode
 
+    continueWithTelegram: () => Promise<void>
+    useEmailLogin: () => void
+
     requestEmailCode: (
         email: string,
     ) => Promise<number>
 
     verifyEmailCode: (
+        email: string,
+        code: string,
+    ) => Promise<void>
+
+    attachEmail: (
         email: string,
         code: string,
     ) => Promise<void>
@@ -134,9 +145,9 @@ export function AuthProvider({
                     initData
                 ) {
 
-                    await loginWithTelegram()
-
-                    await loadCurrentUser()
+                    setMode(
+                        'choice'
+                    )
 
                     return
                 }
@@ -179,6 +190,54 @@ export function AuthProvider({
     }, [])
 
 
+    async function handleContinueWithTelegram() {
+
+        try {
+
+            setLoading(true)
+            setError(null)
+
+            await loginWithTelegram()
+
+            await loadCurrentUser()
+
+        } catch (error) {
+
+            console.error(
+                'Telegram authentication failed:',
+                error,
+            )
+
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : 'Не удалось войти через Telegram'
+
+            setError(
+                message
+            )
+
+            throw error
+
+        } finally {
+
+            setLoading(false)
+        }
+    }
+
+
+    function handleUseEmailLogin() {
+
+        setError(
+            null
+        )
+
+        setMode(
+            'email'
+        )
+    }
+
+
     async function handleRequestEmailCode(
         email: string,
     ): Promise<number> {
@@ -204,10 +263,23 @@ export function AuthProvider({
             setLoading(true)
             setError(null)
 
-            await verifyEmailCode(
-                email,
-                code,
-            )
+            const initData =
+                getTelegramInitData()
+
+            if (initData) {
+
+                await linkEmailWithTelegram(
+                    email,
+                    code,
+                )
+
+            } else {
+
+                await verifyEmailCode(
+                    email,
+                    code,
+                )
+            }
 
             await loadCurrentUser()
 
@@ -236,6 +308,48 @@ export function AuthProvider({
     }
 
 
+    async function handleAttachEmail(
+        email: string,
+        code: string,
+    ): Promise<void> {
+
+        try {
+
+            setLoading(true)
+            setError(null)
+
+            await attachEmail(
+                email,
+                code,
+            )
+
+            await loadCurrentUser()
+
+        } catch (error) {
+
+            console.error(
+                'Email attach failed:',
+                error,
+            )
+
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : 'Не удалось привязать email'
+
+            setError(
+                message
+            )
+
+            throw error
+
+        } finally {
+
+            setLoading(false)
+        }
+    }
+
+
     function handleLogout() {
 
         logoutApi()
@@ -249,7 +363,9 @@ export function AuthProvider({
         )
 
         setMode(
-            'email'
+            getTelegramInitData()
+                ? 'choice'
+                : 'email'
         )
     }
 
@@ -261,10 +377,16 @@ export function AuthProvider({
                 loading,
                 error,
                 mode,
+                continueWithTelegram:
+                    handleContinueWithTelegram,
+                useEmailLogin:
+                    handleUseEmailLogin,
                 requestEmailCode:
                     handleRequestEmailCode,
                 verifyEmailCode:
                     handleVerifyEmailCode,
+                attachEmail:
+                    handleAttachEmail,
                 logout:
                     handleLogout,
             }}

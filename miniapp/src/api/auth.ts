@@ -16,6 +16,13 @@ export type EmailCodeRequestResponse = {
 }
 
 
+export type AttachEmailResponse = {
+    success: boolean
+    user_id: number
+    email: string
+}
+
+
 /**
  * Вход через Telegram Mini App.
  */
@@ -96,6 +103,67 @@ export async function verifyEmailCode(
     )
 
     return response
+}
+
+
+/**
+ * Вход в существующий email-аккаунт из Telegram Mini App
+ * с привязкой текущего Telegram.
+ */
+export async function linkEmailWithTelegram(
+    email: string,
+    code: string,
+): Promise<AuthResponse> {
+
+    const initData =
+        getTelegramInitData()
+
+    if (!initData) {
+        throw new Error(
+            'Telegram initData отсутствует',
+        )
+    }
+
+    const response =
+        await apiRequest<AuthResponse>(
+            '/auth/email/link-telegram',
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    email,
+                    code,
+                    init_data: initData,
+                }),
+            },
+        )
+
+    localStorage.setItem(
+        'access_token',
+        response.access_token,
+    )
+
+    return response
+}
+
+
+/**
+ * Привязать email к уже авторизованному пользователю.
+ */
+export async function attachEmail(
+    email: string,
+    code: string,
+): Promise<AttachEmailResponse> {
+
+    return apiRequest<AttachEmailResponse>(
+        '/auth/email/attach',
+        {
+            method: 'POST',
+            body: JSON.stringify({
+                email,
+                code,
+            }),
+        },
+    )
 }
 
 

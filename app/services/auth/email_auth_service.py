@@ -144,6 +144,86 @@ class EmailAuthService:
         return self.CODE_TTL_SECONDS
 
     # ==============================
+    # VERIFY CODE ONLY
+    # ==============================
+
+    def verify_code_only(
+        self,
+        email: str,
+        code: str,
+    ) -> str | None:
+
+        email = self.normalize_email(
+            email
+        )
+
+        now = int(
+            time.time()
+        )
+
+        row = email_auth_repo.get_active_code(
+            email=email,
+            now=now,
+        )
+
+        if row is None:
+            return None
+
+        code_id = int(
+            row["id"]
+        )
+
+        attempts = int(
+            row["attempts"]
+        )
+
+        if attempts >= self.MAX_ATTEMPTS:
+
+            email_auth_repo.mark_used(
+                code_id=code_id,
+                used_at=now,
+            )
+
+            return None
+
+        expected_hash = row[
+            "code_hash"
+        ]
+
+        actual_hash = self.hash_code(
+            email=email,
+            code=code,
+        )
+
+        if not hmac.compare_digest(
+            expected_hash,
+            actual_hash,
+        ):
+
+            email_auth_repo.increment_attempts(
+                code_id
+            )
+
+            if (
+                attempts + 1
+                >= self.MAX_ATTEMPTS
+            ):
+                email_auth_repo.mark_used(
+                    code_id=code_id,
+                    used_at=now,
+                )
+
+            return None
+
+        email_auth_repo.mark_used(
+            code_id=code_id,
+            used_at=now,
+        )
+
+        return email
+
+
+    # ==============================
     # VERIFY CODE
     # ==============================
 

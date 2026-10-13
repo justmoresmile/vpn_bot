@@ -128,6 +128,63 @@ class UserService:
 
         return user
 
+    def attach_telegram(
+        self,
+        *,
+        user_id: int,
+        telegram_id: int,
+        username: str | None,
+        first_name: str | None,
+    ) -> User:
+
+        user = self.get_by_id(
+            user_id
+        )
+
+        if user is None:
+            raise ValueError(
+                "User not found"
+            )
+
+        existing = self.get_by_telegram(
+            telegram_id
+        )
+
+        if (
+            existing is not None
+            and existing.id != user_id
+        ):
+            raise ValueError(
+                "Telegram account already belongs to another user"
+            )
+
+        if (
+            user.telegram_id is not None
+            and user.telegram_id != telegram_id
+        ):
+            raise ValueError(
+                "User already has another Telegram account"
+            )
+
+        users_repo.set_telegram(
+            user_id=user_id,
+            telegram_id=telegram_id,
+            username=username,
+            first_name=first_name,
+        )
+
+        updated = self.get_by_id(
+            user_id
+        )
+
+        if updated is None:
+            raise ValueError(
+                "User not found after Telegram linking"
+            )
+
+        return updated
+
+
     # ==============================
     # GETTERS
     # ==============================

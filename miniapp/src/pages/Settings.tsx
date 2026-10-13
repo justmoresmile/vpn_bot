@@ -1,9 +1,20 @@
 import {
     useRef,
+    useState,
 } from 'react'
 
 import { useTheme } from '../theme/ThemeContext'
+import { useAuth } from '../context/AuthContext'
 import { themes } from '../theme/themes'
+
+
+
+
+
+type AccountPage =
+    | 'menu'
+    | 'profile'
+    | 'appearance'
 
 
 type SettingsProps = {
@@ -17,20 +28,25 @@ function Settings({
 
     const {
         theme,
-        accent,
-        opacity,
-        mode,
         setTheme,
         setAccent,
-        setOpacity,
-        setMode,
     } = useTheme()
 
     const colorBarRef =
         useRef<HTMLDivElement | null>(null)
 
+    const [
+        accountPage,
+        setAccountPage,
+    ] = useState<AccountPage>('menu')
 
-    function hsvToHex(
+    const {
+        user,
+    } = useAuth()
+
+
+
+function hsvToHex(
         hue: number,
         saturation: number,
         value: number,
@@ -146,13 +162,31 @@ function Settings({
     }
 
     return (
-        <div className="settings-page">
+        <div
+            className="settings-page"
+            style={{
+                display: 'flex',
+                flexDirection: 'column',
+            }}
+        >
 
-            <div className="settings-header">
+            <div
+                className="settings-header"
+                style={{
+                    order: 0,
+                }}
+            >
 
                 <button
                     className="back-button"
-                    onClick={onClose}
+                    onClick={() => {
+                        if (accountPage === 'menu') {
+                            onClose()
+                            return
+                        }
+
+                        setAccountPage('menu')
+                    }}
                 >
                     ←
                 </button>
@@ -160,11 +194,19 @@ function Settings({
                 <div>
 
                     <div className="settings-title">
-                        Оформление
+                        {accountPage === 'profile'
+                            ? 'Профиль'
+                            : accountPage === 'appearance'
+                                ? 'Оформление'
+                                : 'Аккаунт'}
                     </div>
 
                     <div className="settings-subtitle">
-                        Настройте JustVPN под себя
+                        {accountPage === 'profile'
+                            ? 'Данные вашего аккаунта'
+                            : accountPage === 'appearance'
+                                ? 'Внешний вид JustVPN'
+                                : 'Профиль и настройки JustVPN'}
                     </div>
 
                 </div>
@@ -172,7 +214,285 @@ function Settings({
             </div>
 
 
-            <section className="settings-section">
+            {accountPage === 'menu' && (
+
+                <section
+                    className="settings-section"
+                    style={{
+                        padding: 0,
+                        overflow: 'hidden',
+                    }}
+                >
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            setAccountPage('profile')
+                        }
+                        style={{
+                            width: '100%',
+                            minHeight: 64,
+                            padding: '0 16px',
+                            border: 0,
+                            borderBottom:
+                                '1px solid rgba(127,127,127,0.14)',
+                            background: 'transparent',
+                            color: 'inherit',
+                            display: 'flex',
+                            alignItems: 'center',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                        }}
+                    >
+
+                        <div
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    fontSize: 16,
+                                    fontWeight: 600,
+                                }}
+                            >
+                                Профиль
+                            </div>
+
+                            <div
+                                className="setting-description"
+                                style={{
+                                    marginTop: 2,
+                                }}
+                            >
+                                Telegram и Email
+                            </div>
+                        </div>
+
+                        <div
+                            style={{
+                                fontSize: 24,
+                                opacity: 0.35,
+                            }}
+                        >
+                            ›
+                        </div>
+
+                    </button>
+
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            setAccountPage('appearance')
+                        }
+                        style={{
+                            width: '100%',
+                            minHeight: 64,
+                            padding: '0 16px',
+                            border: 0,
+                            background: 'transparent',
+                            color: 'inherit',
+                            display: 'flex',
+                            alignItems: 'center',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                        }}
+                    >
+
+                        <div
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    fontSize: 16,
+                                    fontWeight: 600,
+                                }}
+                            >
+                                Оформление
+                            </div>
+
+                            <div
+                                className="setting-description"
+                                style={{
+                                    marginTop: 2,
+                                }}
+                            >
+                                Тема, цвет и режим
+                            </div>
+                        </div>
+
+                        <div
+                            style={{
+                                fontSize: 24,
+                                opacity: 0.35,
+                            }}
+                        >
+                            ›
+                        </div>
+
+                    </button>
+
+                </section>
+
+            )}
+
+
+            <section
+                className="settings-section"
+                style={{
+                    paddingTop: 4,
+                    display:
+                        accountPage === 'profile'
+                            ? undefined
+                            : 'none',
+                }}
+            >
+
+                <div
+                    className="setting-description"
+                    style={{
+                        marginBottom: 8,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        fontSize: 12,
+                        fontWeight: 600,
+                    }}
+                >
+                    Профиль
+                </div>
+
+                <div
+                    style={{
+                        padding: '10px 0 18px',
+                    }}
+                >
+
+                    <div
+                        style={{
+                            fontSize: 20,
+                            fontWeight: 700,
+                        }}
+                    >
+                        {user?.first_name
+                            || user?.username
+                            || 'Пользователь'}
+                    </div>
+
+                </div>
+
+
+                <div
+                    style={{
+                        borderTop:
+                            '1px solid rgba(127,127,127,0.14)',
+                    }}
+                >
+
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 16,
+                            minHeight: 52,
+                            borderBottom:
+                                '1px solid rgba(127,127,127,0.14)',
+                        }}
+                    >
+
+                        <div
+                            style={{
+                                fontWeight: 500,
+                                flexShrink: 0,
+                            }}
+                        >
+                            Telegram
+                        </div>
+
+                        <div
+                            className="setting-description"
+                            style={{
+                                textAlign: 'right',
+                                wordBreak: 'break-all',
+                            }}
+                        >
+                            {user?.telegram_id
+                                ? user.telegram_id
+                                : 'Не привязан'}
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 16,
+                            minHeight: 52,
+                            borderBottom:
+                                '1px solid rgba(127,127,127,0.14)',
+                        }}
+                    >
+
+                        <div
+                            style={{
+                                fontWeight: 500,
+                                flexShrink: 0,
+                            }}
+                        >
+                            Email
+                        </div>
+
+                        <div
+                            className="setting-description"
+                            style={{
+                                textAlign: 'right',
+                                wordBreak: 'break-word',
+                            }}
+                        >
+                            {user?.email
+                                ? user.email
+                                : 'Не привязан'}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+
+            <section
+                className="settings-section"
+                style={{
+                    display:
+                        accountPage === 'appearance'
+                            ? undefined
+                            : 'none',
+                }}
+            >
+
+                <h2>
+                    Оформление
+                </h2>
+
+                <div
+                    className="setting-description"
+                    style={{
+                        marginBottom: 18,
+                    }}
+                >
+                    Тема, цвет и внешний вид приложения
+                </div>
 
                 <h2>
                     Тема JustVPN
@@ -305,102 +625,6 @@ function Settings({
 
 
             </section>
-
-
-            <section className="settings-section">
-
-                <div className="setting-row">
-
-                    <div>
-
-                        <h2>
-                            Прозрачность
-                        </h2>
-
-                        <span className="setting-description">
-                            Прозрачность акцентных элементов
-                        </span>
-
-                    </div>
-
-                    <strong>
-                        {opacity}%
-                    </strong>
-
-                </div>
-
-                <input
-                    className="opacity-slider"
-                    type="range"
-                    min="20"
-                    max="100"
-                    value={opacity}
-                    onChange={(event) =>
-                        setOpacity(
-                            Number(
-                                event.target.value,
-                            ),
-                        )
-                    }
-                    style={{
-                        accentColor:
-                            accent,
-                    }}
-                />
-
-            </section>
-
-
-            <section className="settings-section">
-
-                <h2>
-                    Режим
-                </h2>
-
-                <div className="mode-selector">
-
-                    <button
-                        className={
-                            mode === 'light'
-                                ? 'active'
-                                : ''
-                        }
-                        onClick={() =>
-                            setMode(
-                                'light',
-                            )
-                        }
-                    >
-                        ☀️
-                        <span>
-                            Светлая
-                        </span>
-                    </button>
-
-                    <button
-                        className={
-                            mode === 'dark'
-                                ? 'active'
-                                : ''
-                        }
-                        onClick={() =>
-                            setMode(
-                                'dark',
-                            )
-                        }
-                    >
-                        🌙
-                        <span>
-                            Тёмная
-                        </span>
-                    </button>
-
-                </div>
-
-            </section>
-
-
-
 
 
 

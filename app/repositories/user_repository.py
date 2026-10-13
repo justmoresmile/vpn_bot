@@ -356,6 +356,36 @@ class UsersRepository:
         )
 
     # ==============================
+    # SET TELEGRAM
+    # ==============================
+
+    @staticmethod
+    def set_telegram(
+        user_id: int,
+        telegram_id: int,
+        username: str | None = None,
+        first_name: str | None = None,
+    ) -> None:
+
+        db.execute(
+            """
+            UPDATE users
+            SET
+                telegram_id = ?,
+                username = ?,
+                first_name = ?
+            WHERE id = ?
+            """,
+            (
+                telegram_id,
+                username,
+                first_name,
+                user_id,
+            ),
+        )
+
+
+    # ==============================
     # SET EMAIL
     # ==============================
 

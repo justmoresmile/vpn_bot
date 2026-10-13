@@ -59,8 +59,31 @@ export async function apiRequest<T>(
             const data =
                 await response.json()
 
-            if (data?.detail) {
+            if (
+                typeof data?.detail === 'string'
+            ) {
+
                 detail = data.detail
+
+            } else if (
+                data?.detail &&
+                typeof data.detail === 'object'
+            ) {
+
+                if (
+                    typeof data.detail.message === 'string'
+                ) {
+
+                    detail = data.detail.message
+
+                    if (
+                        typeof data.detail.retry_after === 'number'
+                    ) {
+
+                        detail =
+                            `${detail}. Повторите через ${data.detail.retry_after} сек.`
+                    }
+                }
             }
 
         } catch {

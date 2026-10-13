@@ -2,9 +2,10 @@ import { apiRequest } from './api'
 
 export type UserResponse = {
     id: number
-    telegram_id: number
+    telegram_id: number | null
     username: string | null
     first_name: string | null
+    email: string | null
     is_admin: boolean
 }
 

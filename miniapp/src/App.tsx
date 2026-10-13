@@ -22,6 +22,7 @@ import {
 import SupportScreen from './pages/Support'
 
 import EmailAuthScreen from './components/auth/EmailAuthScreen'
+import AuthChoiceScreen from './components/auth/AuthChoiceScreen'
 
 import BottomNavigation from './components/layout/BottomNavigation'
 
@@ -31,7 +32,6 @@ import BottomNavigation from './components/layout/BottomNavigation'
 
 
 
-import { useTheme } from './theme/ThemeContext'
 
 
 
@@ -71,6 +71,7 @@ import {
   getWallet,
   type WalletResponse,
 } from './api/balance'
+import { useTheme } from './theme/ThemeContext'
 
 
 
@@ -84,11 +85,16 @@ type Tab =
 
   | 'support'
 
+  | 'account'
+
 
 
 
 
 function App() {
+
+  const { mode, setMode } = useTheme()
+
 
 
 
@@ -119,6 +125,10 @@ function App() {
     error,
 
     mode: authMode,
+
+    continueWithTelegram,
+
+    useEmailLogin,
 
     requestEmailCode,
 
@@ -219,6 +229,8 @@ function App() {
 
       tab === 'support' ||
 
+      tab === 'account' ||
+
       tab === 'home'
 
     ) {
@@ -252,6 +264,16 @@ function App() {
     setNotificationsOpen,
 
   ] = useState(false)
+
+
+  function handleTabChange(
+    tab: Tab,
+  ) {
+
+    setNotificationsOpen(false)
+    setSettingsOpen(false)
+    setActiveTab(tab)
+  }
 
 
   const [
@@ -323,24 +345,7 @@ function App() {
     }
 
   }, [])
-
-
-
-  const {
-
-    mode,
-
-    setMode,
-
-  } = useTheme()
-
-
-
-
-
-
-
-  const activeSubscription =
+const activeSubscription =
 
     subscriptions.find(
 
@@ -867,6 +872,25 @@ function App() {
 
 
   if (
+    authMode === 'choice' &&
+    !user
+  ) {
+
+    return (
+      <AuthChoiceScreen
+        error={error}
+        onTelegram={
+          continueWithTelegram
+        }
+        onEmail={
+          useEmailLogin
+        }
+      />
+    )
+  }
+
+
+  if (
     authMode === 'email' &&
     !user
   ) {
@@ -1014,11 +1038,9 @@ function App() {
           <button
             type="button"
             className="header-balance"
-            onClick={() => {
-              setActiveTab('balance')
-              setNotificationsOpen(false)
-              setSettingsOpen(false)
-            }}
+            onClick={() =>
+              handleTabChange('balance')
+            }
             aria-label="Открыть баланс"
           >
             {(
@@ -1091,233 +1113,94 @@ function App() {
 
           </button>
 
-
-
-
-
           <button
-
+            type="button"
             className="theme-button"
-
             onClick={() =>
-
               setMode(
-
-                mode === 'light'
-
-                  ? 'dark'
-
-                  : 'light',
-
+                mode === 'dark'
+                  ? 'light'
+                  : 'dark'
               )
-
             }
-
-            aria-label={
-
-              mode === 'light'
-
-                ? 'Включить тёмную тему'
-
-                : 'Включить светлую тему'
-
+            aria-label="Переключить тему"
+            title={
+              mode === 'dark'
+                ? 'Светлая тема'
+                : 'Тёмная тема'
             }
-
           >
-
-
-
-            <svg
-
-              viewBox="0 0 24 24"
-
-              fill="none"
-
-              stroke="currentColor"
-
-              strokeWidth="1.8"
-
-            >
-
-
-
-              {mode === 'light' ? (
-
-                <>
-
-                  <path
-
-                    d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.7 6.7 0 0 0 9.8 9.8Z"
-
-                  />
-
-                </>
-
-              ) : (
-
-                <>
-
-                  <circle
-
-                    cx="12"
-
-                    cy="12"
-
-                    r="4"
-
-                  />
-
-
-
-                  <path d="M12 2v2" />
-
-                  <path d="M12 20v2" />
-
-
-
-                  <path
-
-                    d="M4.93 4.93l1.42 1.42"
-
-                  />
-
-
-
-                  <path
-
-                    d="M17.65 17.65l1.42 1.42"
-
-                  />
-
-
-
-                  <path d="M2 12h2" />
-
-                  <path d="M20 12h2" />
-
-
-
-                  <path
-
-                    d="M4.93 19.07l1.42-1.42"
-
-                  />
-
-
-
-                  <path
-
-                    d="M17.65 6.35l1.42-1.42"
-
-                  />
-
-                </>
-
-              )}
-
-
-
-            </svg>
-
-
-
+            {mode === 'dark' ? (
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="4"
+                />
+                <path d="M12 2v2" />
+                <path d="M12 20v2" />
+                <path d="M4.93 4.93l1.42 1.42" />
+                <path d="M17.65 17.65l1.42 1.42" />
+                <path d="M2 12h2" />
+                <path d="M20 12h2" />
+                <path d="M4.93 19.07l1.42-1.42" />
+                <path d="M17.65 6.35l1.42-1.42" />
+              </svg>
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path
+                  d="M21 12.79A9 9 0 1 1 11.21 3
+                     7 7 0 0 0 21 12.79z"
+                />
+              </svg>
+            )}
           </button>
 
-
-
-
-
           <button
-
-            className="color-button"
-
+            type="button"
+            className="account-button"
             onClick={() =>
-
-              setSettingsOpen(true)
-
+              handleTabChange(
+                'account'
+              )
             }
-
-            aria-label="Цвет интерфейса"
-
+            aria-label="Аккаунт"
           >
 
-
-
             <svg
-
               viewBox="0 0 24 24"
-
               fill="none"
-
               stroke="currentColor"
-
               strokeWidth="1.8"
-
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-
-
+              <circle
+                cx="12"
+                cy="8"
+                r="4"
+              />
 
               <path
-
-                d="M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h2a2 2 0 0 0 0-4h-2a2 2 0 0 1 0-6Z"
-
+                d="M4.5 21a7.5 7.5 0 0 1 15 0"
               />
-
-
-
-              <circle
-
-                cx="7.5"
-
-                cy="10"
-
-                r="0.8"
-
-              />
-
-
-
-              <circle
-
-                cx="9"
-
-                cy="6.8"
-
-                r="0.8"
-
-              />
-
-
-
-              <circle
-
-                cx="14"
-
-                cy="6.5"
-
-                r="0.8"
-
-              />
-
-
-
-              <circle
-
-                cx="17"
-
-                cy="10"
-
-                r="0.8"
-
-              />
-
-
-
             </svg>
 
-
-
           </button>
+
 
 
 
@@ -1355,10 +1238,9 @@ function App() {
                 ticketId,
               )
 
-              setNotificationsOpen(false)
-              setSettingsOpen(false)
-
-              setActiveTab('support')
+              handleTabChange(
+                'support'
+              )
 
             }}
 
@@ -1378,22 +1260,6 @@ function App() {
                 })
 
             }}
-
-          />
-
-
-
-        ) : settingsOpen ? (
-
-
-
-          <Settings
-
-            onClose={() =>
-
-              setSettingsOpen(false)
-
-            }
 
           />
 
@@ -1593,6 +1459,19 @@ function App() {
 
 
 
+            {activeTab === 'account' && (
+
+              <Settings
+                onClose={() =>
+                  handleTabChange(
+                    'home'
+                  )
+                }
+              />
+
+            )}
+
+
             {activeTab === 'support' && (
 
               <SupportScreen
@@ -1627,7 +1506,7 @@ function App() {
 
           activeTab={activeTab}
 
-          onChange={setActiveTab}
+          onChange={handleTabChange}
 
         />
 

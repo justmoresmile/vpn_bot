@@ -16,18 +16,62 @@ type ColorMode = 'light' | 'dark'
 type ThemeContextValue = {
     theme: ThemeName
     accent: string
-    opacity: number
     mode: ColorMode
 
     setTheme: (theme: ThemeName) => void
     setAccent: (accent: string) => void
-    setOpacity: (opacity: number) => void
     setMode: (mode: ColorMode) => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 const STORAGE_KEY = 'justvpn-theme'
+
+
+function hexToRgba(
+    hex: string,
+    alpha: number,
+) {
+    let value =
+        hex.replace('#', '')
+
+    if (value.length === 3) {
+        value =
+            value
+                .split('')
+                .map((char) => char + char)
+                .join('')
+    }
+
+    if (value.length !== 6) {
+        return `rgba(0, 0, 0, ${alpha})`
+    }
+
+    const red =
+        parseInt(
+            value.slice(0, 2),
+            16,
+        )
+
+    const green =
+        parseInt(
+            value.slice(2, 4),
+            16,
+        )
+
+    const blue =
+        parseInt(
+            value.slice(4, 6),
+            16,
+        )
+
+    return `rgba(
+        ${red},
+        ${green},
+        ${blue},
+        ${alpha}
+    )`
+}
 
 export function ThemeProvider({
     children,
@@ -52,16 +96,6 @@ export function ThemeProvider({
             )
         })
 
-    const [opacity, setOpacityState] =
-        useState<number>(() => {
-            const value = localStorage.getItem(
-                `${STORAGE_KEY}-opacity`,
-            )
-
-            return value
-                ? Number(value)
-                : 100
-        })
 
     const [mode, setModeState] =
         useState<ColorMode>(() => {
@@ -112,15 +146,6 @@ export function ThemeProvider({
         )
     }
 
-    const setOpacity = (value: number) => {
-        setOpacityState(value)
-
-        localStorage.setItem(
-            `${STORAGE_KEY}-opacity`,
-            String(value),
-        )
-    }
-
     const setMode = (value: ColorMode) => {
         setModeState(value)
 
@@ -131,7 +156,17 @@ export function ThemeProvider({
     }
 
     useEffect(() => {
+
         const root = document.documentElement
+
+        /*
+         * Основной цвет остаётся насыщенным.
+         * Ползунок влияет только на мягкие
+         * акцентные фоны и подсветку.
+         */
+        const softAlpha = 0.28
+        const lightAlpha = 0.37
+
 
         root.style.setProperty(
             '--accent',
@@ -139,23 +174,32 @@ export function ThemeProvider({
         )
 
         root.style.setProperty(
-            '--accent-opacity',
-            String(opacity / 100),
+            '--accent-soft',
+            hexToRgba(
+                accent,
+                softAlpha,
+            ),
+        )
+
+        root.style.setProperty(
+            '--accent-light',
+            hexToRgba(
+                accent,
+                lightAlpha,
+            ),
         )
 
         root.dataset.theme = mode
-    }, [accent, opacity, mode])
+    }, [accent, mode])
 
     return (
         <ThemeContext.Provider
             value={{
                 theme,
                 accent,
-                opacity,
                 mode,
                 setTheme,
                 setAccent,
-                setOpacity,
                 setMode,
             }}
         >

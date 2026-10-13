@@ -9,6 +9,9 @@ from pydantic import BaseModel
 from app.api.dependencies.internal import (
     verify_internal_api_key,
 )
+from app.api.dependencies.auth import (
+    get_current_user,
+)
 from app.api.schemas.auth import (
     EmailCodeRequest,
     EmailCodeRequestResponse,
@@ -42,6 +45,12 @@ class InternalTokenRequest(BaseModel):
 
 
 class TelegramWebAppRequest(BaseModel):
+    init_data: str
+
+
+class TelegramEmailLinkRequest(BaseModel):
+    email: str
+    code: str
     init_data: str
 
 
@@ -138,6 +147,129 @@ async def create_telegram_token(
     return {
         "access_token": token,
         "token_type": "bearer",
+    }
+
+
+# ============================================================
+# LINK EXISTING EMAIL ACCOUNT WITH TELEGRAM
+# ============================================================
+
+@router.post(
+    "/email/link-telegram",
+)
+async def link_email_account_to_telegram(
+    request: TelegramEmailLinkRequest,
+):
+
+    user_data = (
+        telegram_webapp_auth.validate_init_data(
+            request.init_data
+        )
+    )
+
+    if user_data is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Telegram init data",
+        )
+
+    verified_email = (
+        email_auth_service.verify_code_only(
+            email=request.email,
+            code=request.code,
+        )
+    )
+
+    if verified_email is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired code",
+        )
+
+    existing_email_user = (
+        user_service.get_by_email(
+            verified_email
+        )
+    )
+
+    if existing_email_user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Email account not found",
+        )
+
+    try:
+
+        user = user_service.attach_telegram(
+            user_id=existing_email_user.id,
+            telegram_id=user_data["telegram_id"],
+            username=user_data.get("username"),
+            first_name=user_data.get("first_name"),
+        )
+
+    except ValueError as exc:
+
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        )
+
+    token = jwt_service.create_token(
+        user.id
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+    }
+
+
+
+# ============================================================
+# ATTACH EMAIL TO CURRENT USER
+# ============================================================
+
+@router.post(
+    "/email/attach",
+)
+async def attach_email_to_current_user(
+    request: EmailCodeVerifyRequest,
+    current_user = Depends(
+        get_current_user
+    ),
+):
+
+    verified_email = (
+        email_auth_service.verify_code_only(
+            email=request.email,
+            code=request.code,
+        )
+    )
+
+    if verified_email is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired code",
+        )
+
+    try:
+
+        user = user_service.attach_email(
+            user_id=current_user.id,
+            email=verified_email,
+        )
+
+    except ValueError as exc:
+
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        )
+
+    return {
+        "success": True,
+        "user_id": user.id,
+        "email": user.email,
     }
 
 

@@ -3,6 +3,7 @@ type Tab =
   | 'subscription'
   | 'balance'
   | 'support'
+  | 'account'
 
 
 function BottomNavigation({
