@@ -28,8 +28,14 @@ export async function getWallet(): Promise<WalletResponse> {
 }
 
 
+export type PaymentMethod =
+  | 'sbp'
+  | 'bank_card'
+
+
 export async function createBalanceTopup(
   amount: number,
+  paymentMethod: PaymentMethod = 'sbp',
 ): Promise<BalanceTopupResponse> {
 
   return apiRequest<BalanceTopupResponse>(
@@ -38,6 +44,7 @@ export async function createBalanceTopup(
       method: 'POST',
       body: JSON.stringify({
         amount,
+        payment_method: paymentMethod,
       }),
     },
   )

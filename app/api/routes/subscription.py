@@ -2,6 +2,7 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Header,
 )
 
 import qrcode
@@ -117,6 +118,22 @@ async def get_subscription(
 )
 async def get_config(
     subscription_id: int,
+
+    x_hwid: str | None = Header(
+        default=None,
+        alias="x-hwid",
+    ),
+
+    x_device_os: str | None = Header(
+        default=None,
+        alias="x-device-os",
+    ),
+
+    x_device_model: str | None = Header(
+        default=None,
+        alias="x-device-model",
+    ),
+
     user: User = Depends(
         get_current_user
     ),
@@ -140,9 +157,46 @@ async def get_config(
         user,
     )
 
-    config = await vpn_service.get_config(
-        subscription_id
-    )
+    # --------------------------------------------------------
+    # REMNAWAVE / ANDROID SING-BOX
+    # --------------------------------------------------------
+
+    if (
+        subscription.provider
+        == "remnawave"
+    ):
+
+        if not x_hwid:
+            raise HTTPException(
+                status_code=400,
+                detail="x-hwid header is required",
+            )
+
+        config = (
+            remnawave_service
+            .get_singbox_config(
+                subscription.user_id,
+                hwid=x_hwid,
+                device_os=(
+                    x_device_os
+                    or "Android"
+                ),
+                device_model=(
+                    x_device_model
+                    or "JustVPN Android"
+                ),
+            )
+        )
+
+    # --------------------------------------------------------
+    # LEGACY
+    # --------------------------------------------------------
+
+    else:
+
+        config = await vpn_service.get_config(
+            subscription_id
+        )
 
     if not config:
         raise HTTPException(
@@ -153,6 +207,7 @@ async def get_config(
     return ConfigResponse(
         config=config,
     )
+
 
 
 @router.post(

@@ -80,6 +80,57 @@ class RemnawaveClient:
             f"/api/users/by-username/{username}",
         )
 
+    def get_user_by_telegram_id(
+        self,
+        telegram_id: int,
+    ) -> Any:
+
+        data = self.request(
+            "GET",
+            "/api/users/stream",
+            params={
+                "telegramId": int(telegram_id),
+                "size": 10,
+            },
+        )
+
+        if not isinstance(data, dict):
+            return None
+
+        response = data.get(
+            "response",
+            data,
+        )
+
+        if not isinstance(response, dict):
+            return None
+
+        users = response.get(
+            "users",
+            [],
+        )
+
+        if not isinstance(users, list):
+            return None
+
+        for user in users:
+
+            if not isinstance(user, dict):
+                continue
+
+            value = user.get(
+                "telegramId"
+            )
+
+            if (
+                value is not None
+                and str(value)
+                == str(telegram_id)
+            ):
+                return user
+
+        return None
+
     def create_user(
         self,
         payload: dict[str, Any],

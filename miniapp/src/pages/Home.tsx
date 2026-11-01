@@ -167,6 +167,12 @@ function HomeScreen({
     setTrialUpgradeOpen,
   ] = useState(false)
 
+
+  const [
+    deviceUpgradeOpen,
+    setDeviceUpgradeOpen,
+  ] = useState(false)
+
   const [
     trialUpgradeError,
     setTrialUpgradeError,
@@ -228,7 +234,9 @@ function HomeScreen({
 
 
   const continueWithDeviceLimit =
-    async () => {
+    async (
+      confirmedUpgrade = false,
+    ) => {
 
       if (!subscription) {
         onSubscriptionClick()
@@ -281,6 +289,14 @@ function HomeScreen({
           selectedDeviceLimit
           !== currentDeviceLimit
         ) {
+
+          if (
+            selectedDeviceLimit > currentDeviceLimit
+            && !confirmedUpgrade
+          ) {
+            setDeviceUpgradeOpen(true)
+            return
+          }
 
           const response =
             await setSubscriptionDeviceLimit(
@@ -703,6 +719,62 @@ function HomeScreen({
       .join(':')
 
 
+  const bonusUntilValue =
+    subscription?.bonus_until
+      ? (
+          subscription.bonus_until.endsWith('Z')
+          || /[+-]\d{2}:\d{2}$/.test(
+            subscription.bonus_until,
+          )
+        )
+        ? subscription.bonus_until
+        : `${subscription.bonus_until}Z`
+      : null
+
+
+  const bonusUntilMs =
+    bonusUntilValue
+      ? new Date(
+          bonusUntilValue,
+        ).getTime()
+      : 0
+
+
+  const bonusSecondsLeft =
+    bonusUntilMs > now
+      ? Math.floor(
+          (
+            bonusUntilMs
+            - now
+          ) / 1000,
+        )
+      : 0
+
+
+  const bonusDaysLeft =
+    bonusSecondsLeft > 0
+      ? Math.ceil(
+          bonusSecondsLeft /
+          86400,
+        )
+      : 0
+
+
+  const bonusUntilLabel =
+    bonusUntilMs > 0
+      ? new Date(
+          bonusUntilMs,
+        ).toLocaleDateString(
+          'ru-RU',
+          {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          },
+        )
+      : null
+
+
   const normalizeApiDate = (
     value: string | null | undefined,
   ): string | null => {
@@ -806,8 +878,14 @@ function HomeScreen({
   return (
     <>
 
+      {(trial?.active || vpnActive || !trial?.available) && (
+
       <section
-        className="vpn-card"
+        className={
+          !trial?.active && !vpnActive
+            ? 'vpn-card vpn-card-inactive'
+            : 'vpn-card'
+        }
         style={{
           padding: '24px 20px',
           minHeight: 96,
@@ -816,100 +894,180 @@ function HomeScreen({
         }}
       >
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'auto 1fr auto',
-            alignItems: 'center',
-            gap: 20,
-            width: '100%',
-          }}
-        >
+        {trial?.active || vpnActive ? (
 
           <div
             style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: 5,
-              whiteSpace: 'nowrap',
-            }}
-          >
-
-            <strong
-              style={{
-                fontSize: 28,
-                lineHeight: 1,
-                fontWeight: 850,
-              }}
-            >
-              {trial?.active
-                ? trialDays
-                : vpnActive
-                  ? accessDays
-                  : '0'
-              }
-            </strong>
-
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                opacity: 0.55,
-              }}
-            >
-              ДН.
-            </span>
-
-          </div>
-
-
-          <div
-            style={{
-              textAlign: 'center',
-              minWidth: 0,
+              display: 'grid',
+              gridTemplateColumns: 'auto 1fr auto',
+              alignItems: 'center',
+              gap: 20,
+              width: '100%',
             }}
           >
 
             <div
               style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 5,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <strong
+                style={{
+                  fontSize: 28,
+                  lineHeight: 1,
+                  fontWeight: 850,
+                }}
+              >
+                {trial?.active
+                  ? trialDays
+                  : accessDays
+                }
+              </strong>
+
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  opacity: 0.55,
+                }}
+              >
+                ДН.
+              </span>
+            </div>
+
+            <div
+              style={{
+                textAlign: 'center',
+                minWidth: 0,
                 fontSize: 14,
                 fontWeight: 750,
                 whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
               }}
             >
               {trial?.active
                 ? 'Пробный период'
-                : vpnActive
-                  ? 'Подписка активна'
-                  : 'Подписка не активна'
+                : 'Подписка активна'
               }
+            </div>
+
+            <div
+              style={{
+                textAlign: 'right',
+                whiteSpace: 'nowrap',
+                fontSize: 16,
+                fontWeight: 800,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {trial?.active
+                ? trialTime
+                : accessTime
+              }
+            </div>
+
+
+            {!trial?.active
+              && bonusDaysLeft > 0
+              && (
+                <div
+                  style={{
+                    gridColumn: '1 / -1',
+                    marginTop: 14,
+                    display: 'flex',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      width: 'fit-content',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 27,
+                        lineHeight: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      🎁
+                    </div>
+
+                    <div
+                      style={{
+                        textAlign: 'left',
+                        width: 'fit-content',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 800,
+                        }}
+                      >
+                        Бонусное время
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: 3,
+                          fontSize: 12,
+                          opacity: 0.7,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Осталось {bonusDaysLeft} дн.
+                        {
+                          bonusUntilLabel
+                            ? ` · до ${bonusUntilLabel}`
+                            : ''
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+          </div>
+
+        ) : (
+
+          <div
+            className="home-inactive-content"
+          >
+
+            <div className="home-inactive-icon">
+              !
+            </div>
+
+            <div className="home-inactive-text">
+              <div className="home-inactive-title">
+                {trial?.available
+                  ? 'Попробуйте JustVPN бесплатно'
+                  : 'Подписка не активна'
+                }
+              </div>
+
+              <div className="home-inactive-subtitle">
+                {trial?.available
+                  ? 'Вам доступно 3 дня бесплатного доступа'
+                  : 'Пополните баланс'
+                }
+              </div>
             </div>
 
           </div>
 
-
-          <div
-            style={{
-              textAlign: 'right',
-              whiteSpace: 'nowrap',
-              fontSize: 16,
-              fontWeight: 800,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {trial?.active
-              ? trialTime
-              : vpnActive
-                ? accessTime
-                : '00:00:00'
-            }
-          </div>
-
-        </div>
+        )}
 
       </section>
+
+      )}
 
 
       {trial?.available && (
@@ -1747,6 +1905,238 @@ function HomeScreen({
                   '1px solid rgba(127, 127, 127, 0.14)',
                 background:
                   'rgba(127, 127, 127, 0.07)',
+                color: 'inherit',
+                fontSize: 14,
+                fontWeight: 700,
+              }}
+            >
+              Отмена
+            </button>
+
+          </div>
+
+        </div>
+
+      )}
+
+
+      {deviceUpgradeOpen && (
+
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            padding: 16,
+            background:
+              'rgba(0, 0, 0, 0.46)',
+          }}
+          onClick={() => {
+            if (!deviceLimitLoading) {
+              setDeviceUpgradeOpen(false)
+            }
+          }}
+        >
+
+          <div
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              padding: 20,
+              borderRadius: 24,
+              background:
+                'var(--card)',
+              color:
+                'var(--text)',
+              boxShadow:
+                '0 18px 60px rgba(0,0,0,0.24)',
+            }}
+          >
+
+            <div
+              style={{
+                fontSize: 19,
+                fontWeight: 850,
+                textAlign: 'center',
+              }}
+            >
+              Перейти с {
+                currentDeviceLimit
+              } на {
+                selectedDeviceLimit
+              } устройств?
+            </div>
+
+
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 14,
+                lineHeight: 1.5,
+                textAlign: 'center',
+                opacity: 0.72,
+              }}
+            >
+              После изменения будет действовать
+              новая стоимость подписки.
+            </div>
+
+
+            <div
+              style={{
+                marginTop: 18,
+                padding: 16,
+                borderRadius: 18,
+                background:
+                  'var(--accent-soft)',
+                textAlign: 'center',
+              }}
+            >
+
+              <div
+                style={{
+                  fontSize: 12,
+                  color:
+                    'var(--text-secondary)',
+                }}
+              >
+                Стоимость
+              </div>
+
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 24,
+                  fontWeight: 850,
+                }}
+              >
+                {previewDailyPrice} ₽
+              </div>
+
+              <div
+                style={{
+                  marginTop: 2,
+                  fontSize: 12,
+                  color:
+                    'var(--text-secondary)',
+                }}
+              >
+                за 24 часа
+              </div>
+
+            </div>
+
+
+            {
+              (() => {
+                const value =
+                  subscription?.bonus_until
+
+                if (!value) {
+                  return null
+                }
+
+                const normalized =
+                  value.endsWith('Z')
+                  || /[+-]\d{2}:\d{2}$/.test(
+                    value,
+                  )
+                    ? value
+                    : `${value}Z`
+
+                const active =
+                  new Date(
+                    normalized,
+                  ).getTime() > Date.now()
+
+                if (!active) {
+                  return null
+                }
+
+                return (
+                  <div
+                    style={{
+                      marginTop: 14,
+                      padding: '13px 14px',
+                      borderRadius: 16,
+                      background:
+                        'rgba(255, 170, 0, 0.10)',
+                      border:
+                        '1px solid rgba(255, 170, 0, 0.24)',
+                      fontSize: 13,
+                      lineHeight: 1.5,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <strong>
+                      ⚠️ Внимание
+                    </strong>
+
+                    <div
+                      style={{
+                        marginTop: 5,
+                      }}
+                    >
+                      У вас есть активные
+                      бонусные дни.
+                      При увеличении количества
+                      устройств оставшиеся
+                      бонусные дни сгорят.
+                    </div>
+                  </div>
+                )
+              })()
+            }
+
+
+            <button
+              type="button"
+              className="primary-button"
+              disabled={deviceLimitLoading}
+              onClick={() => {
+                setDeviceUpgradeOpen(false)
+
+                void continueWithDeviceLimit(
+                  true,
+                )
+              }}
+              style={{
+                width: '100%',
+                marginTop: 18,
+              }}
+            >
+              {deviceLimitLoading
+                ? 'Сохраняем...'
+                : 'Продолжить'
+              }
+
+              <span>
+                →
+              </span>
+            </button>
+
+
+            <button
+              type="button"
+              disabled={deviceLimitLoading}
+              onClick={() =>
+                setDeviceUpgradeOpen(false)
+              }
+              style={{
+                width: '100%',
+                marginTop: 10,
+                padding: '13px 16px',
+                borderRadius: 16,
+                border:
+                  '1px solid rgba(127,127,127,0.14)',
+                background:
+                  'rgba(127,127,127,0.07)',
                 color: 'inherit',
                 fontSize: 14,
                 fontWeight: 700,

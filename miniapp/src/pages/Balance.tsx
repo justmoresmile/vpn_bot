@@ -6,6 +6,7 @@ import {
 import {
   createBalanceTopup,
   getWalletHistory,
+  type PaymentMethod,
   type WalletResponse,
   type WalletTransaction,
 } from '../api/balance'
@@ -40,6 +41,13 @@ function BalanceScreen({
   ] = useState(false)
 
   const [
+    topupMethod,
+    setTopupMethod,
+  ] = useState<PaymentMethod | null>(
+    null,
+  )
+
+  const [
     topupError,
     setTopupError,
   ] = useState<string | null>(null)
@@ -59,6 +67,11 @@ function BalanceScreen({
     historyError,
     setHistoryError,
   ] = useState<string | null>(null)
+
+  const [
+    historyExpanded,
+    setHistoryExpanded,
+  ] = useState(false)
 
 
   const balance =
@@ -141,6 +154,12 @@ function BalanceScreen({
       case 'topup':
       case 'test_credit':
         return 'Пополнение баланса'
+
+      case 'admin_credit':
+        return 'Бонус от JustVPN'
+
+      case 'admin_debit':
+        return 'Корректировка баланса'
 
       case 'daily_charge':
         return 'Оплата доступа'
@@ -267,11 +286,15 @@ function BalanceScreen({
     try {
 
       setTopupLoading(true)
+      setTopupMethod(
+        'sbp',
+      )
       setTopupError(null)
 
       const payment =
         await createBalanceTopup(
           amount,
+          'sbp',
         )
 
       if (!payment.confirmation_url) {
@@ -312,6 +335,7 @@ function BalanceScreen({
     } finally {
 
       setTopupLoading(false)
+      setTopupMethod(null)
 
     }
   }
@@ -420,6 +444,7 @@ function BalanceScreen({
             >
 
               <input
+                className="topup-amount-input"
                 type="number"
                 inputMode="numeric"
                 min="10"
@@ -465,25 +490,92 @@ function BalanceScreen({
             )}
 
 
-            <button
-              type="button"
-              className="primary-button"
-              onClick={handleTopup}
-              disabled={topupLoading}
+            <div
               style={{
-                marginTop: 14,
-                width: '100%',
+                marginTop: 20,
               }}
             >
-              {topupLoading
-                ? 'Создаём оплату...'
-                : `Пополнить на ${
-                    customAmount.trim()
-                      ? customAmount
-                      : selectedAmount
-                  } ₽`
-              }
-            </button>
+
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleTopup}
+                disabled={topupLoading}
+                style={{
+                  width: '100%',
+                  minHeight: 64,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent:
+                    'space-between',
+                  gap: 12,
+                  paddingLeft: 18,
+                  paddingRight: 18,
+                }}
+              >
+
+                <span
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}
+                >
+
+                  <img
+                    src="/payment/sbp-logo.svg"
+                    alt="СБП"
+                    style={{
+                      width: 38,
+                      height: 38,
+                      objectFit: 'contain',
+                      flexShrink: 0,
+                    }}
+                  />
+
+                  <span
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      gap: 2,
+                    }}
+                  >
+
+                    <strong>
+                      Оплатить через СБП
+                    </strong>
+
+                  </span>
+
+                </span>
+
+
+                <span
+                  style={{
+                    fontSize: 13,
+                    opacity: 0.85,
+                  }}
+                >
+                  {topupLoading
+                    && topupMethod === 'sbp'
+                    ? 'Открываем...'
+                    : `${
+                        customAmount.trim()
+                          ? customAmount
+                          : selectedAmount
+                      } ₽`
+                  }
+                </span>
+
+              </button>
+
+
+
+
+
+
+            </div>
 
           </div>
 
@@ -614,7 +706,13 @@ function BalanceScreen({
 
           <div className="apps-card">
 
-            {transactions.map(
+            {(historyExpanded
+              ? transactions
+              : transactions.slice(
+                  0,
+                  5,
+                )
+            ).map(
               (
                 transaction,
                 index,
@@ -670,6 +768,38 @@ function BalanceScreen({
                 </div>
 
               ),
+            )}
+
+            {transactions.length > 5 && (
+
+              <>
+                <div className="divider" />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setHistoryExpanded(
+                      (current) => !current
+                    )
+                  }
+                  style={{
+                    width: '100%',
+                    minHeight: 48,
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'inherit',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {historyExpanded
+                    ? 'Скрыть'
+                    : `Показать все (${transactions.length})`
+                  }
+                </button>
+              </>
+
             )}
 
           </div>

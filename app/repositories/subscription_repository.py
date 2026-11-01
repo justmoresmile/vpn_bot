@@ -75,6 +75,24 @@ class SubscriptionRepository:
                 )
                 else None
             ),
+            bonus_until=(
+                datetime.fromtimestamp(
+                    row["bonus_until"]
+                )
+                if (
+                    "bonus_until" in row.keys()
+                    and row["bonus_until"]
+                )
+                else None
+            ),
+            bonus_device_limit=(
+                int(row["bonus_device_limit"])
+                if (
+                    "bonus_device_limit" in row.keys()
+                    and row["bonus_device_limit"] is not None
+                )
+                else None
+            ),
             billing_day_index=(
                 row["billing_day_index"]
                 if "billing_day_index" in row.keys()

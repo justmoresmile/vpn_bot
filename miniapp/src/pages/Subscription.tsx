@@ -17,6 +17,7 @@ import type {
   WalletResponse,
 } from '../api/balance'
 
+
 import happIcon from '../assets/happ.png'
 
 import PageTitle from '../components/common/PageTitle'
@@ -48,7 +49,6 @@ function SubscriptionScreen({
 
   wallet,
 
-
   onDeviceLimitChanged,
 
   onDeviceDeleted,
@@ -79,7 +79,6 @@ function SubscriptionScreen({
   }
 
   wallet: WalletResponse | null
-
 
   onDeviceLimitChanged: (
     deviceLimit: number,
@@ -478,38 +477,19 @@ function SubscriptionScreen({
           subtitle="Управление VPN"
         />
 
-        <div className="subscription-timer-card">
+        <div
+          className="subscription-timer-card subscription-inactive-card"
+        >
 
-          <div className="subscription-timer-header">
+          <div className="subscription-inactive-content">
 
-            <div>
-
-              <small>
-                Подписка не активна
-              </small>
-
-              <strong>
-                VPN пока не подключён
-              </strong>
-
+            <div className="subscription-inactive-icon">
+              !
             </div>
 
-            <div className="subscription-timer-icon">
-              🔐
+            <div className="subscription-inactive-text">
+              Пополните баланс, чтобы возобновить работу
             </div>
-
-          </div>
-
-          <div className="empty-card">
-
-            <strong>
-              Нет активной подписки
-            </strong>
-
-            <span>
-              Активируйте пробный период
-              или пополните баланс.
-            </span>
 
           </div>
 

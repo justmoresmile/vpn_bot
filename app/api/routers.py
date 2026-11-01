@@ -1,15 +1,35 @@
-
 from fastapi import APIRouter
 
-from app.api.routes.health import router as health_router
-from app.api.routes.auth import router as auth_router
-from app.api.routes.user import router as user_router
-from app.api.routes.subscription import router as subscription_router
-from app.api.routes.vpn import router as vpn_router
-from app.api.routes.payment import router as payment_router
-from app.api.routes.trial import router as trial_router
-from app.api.routes.support import router as support_router
-from app.api.routes.notification import router as notification_router
+from app.api.routes.health import (
+    router as health_router,
+)
+from app.api.routes.auth import (
+    router as auth_router,
+)
+from app.api.routes.user import (
+    router as user_router,
+)
+from app.api.routes.subscription import (
+    router as subscription_router,
+)
+from app.api.routes.vpn import (
+    router as vpn_router,
+)
+from app.api.routes.payment import (
+    router as payment_router,
+)
+from app.api.routes.trial import (
+    router as trial_router,
+)
+from app.api.routes.support import (
+    router as support_router,
+)
+from app.api.routes.notification import (
+    router as notification_router,
+)
+from app.api.routes.admin import (
+    router as admin_router,
+)
 
 
 router = APIRouter(
@@ -53,5 +73,6 @@ router.include_router(
     notification_router
 )
 
-
-
+router.include_router(
+    admin_router
+)

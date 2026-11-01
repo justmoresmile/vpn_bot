@@ -247,7 +247,10 @@ class BillingService:
 
             cursor.execute(
                 """
-                SELECT balance_kopecks
+                SELECT
+                    balance_kopecks,
+                    trial_used,
+                    trial_ends_at
                 FROM users
                 WHERE id = ?
                 """,
@@ -262,6 +265,28 @@ class BillingService:
                 raise ValueError(
                     "User not found"
                 )
+
+            # Пока действует пробный период,
+            # баланс пользователя не списываем.
+            trial_active = (
+                bool(user_row["trial_used"])
+                and user_row["trial_ends_at"] is not None
+                and int(user_row["trial_ends_at"]) > now_ts
+            )
+
+            if trial_active:
+                return {
+                    "status": "skipped_trial",
+                    "subscription_id": (
+                        subscription_id
+                    ),
+                    "user_id": user_id,
+                    "trial_ends_at": (
+                        datetime.fromtimestamp(
+                            int(user_row["trial_ends_at"])
+                        ).isoformat()
+                    ),
+                }
 
             current_balance = int(
                 user_row[

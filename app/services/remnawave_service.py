@@ -10,7 +10,7 @@ from app.services.remnawave_client import remnawave_client
 
 
 DEFAULT_SQUAD_UUID = (
-    "7ca43779-d4f6-4a5b-8fc2-6bee4f2a7be3"
+    "5c2b57b1-ca16-4f5d-ac57-ae7523628e0e"
 )
 
 DEFAULT_HWID_DEVICE_LIMIT = 1
@@ -252,6 +252,36 @@ class RemnawaveService:
         user = self.get_user(
             justvpn_user_id
         )
+
+        # Если локальный пользователь был удалён и создан заново,
+        # username в Remnawave изменится вместе с justvpn_user_id.
+        # В таком случае ищем старую запись по telegramId.
+        if user is None and telegram_id is not None:
+
+            try:
+                data = (
+                    remnawave_client
+                    .get_user_by_telegram_id(
+                        int(telegram_id)
+                    )
+                )
+
+            except httpx.HTTPStatusError as exc:
+
+                if exc.response.status_code != 404:
+                    raise
+
+            else:
+
+                existing_user = self._unwrap(
+                    data
+                )
+
+                if isinstance(
+                    existing_user,
+                    dict,
+                ):
+                    user = existing_user
 
         # ------------------------------------------------------
         # CREATE
@@ -578,6 +608,49 @@ class RemnawaveService:
             return None
 
         return str(value)
+
+    # ==========================================================
+    # SING-BOX CONFIG
+    # ==========================================================
+
+    def get_singbox_config(
+        self,
+        justvpn_user_id: int,
+        *,
+        hwid: str,
+        device_model: str = "JustVPN Android",
+        device_os: str = "Android",
+    ) -> str | None:
+
+        subscription_url = (
+            self.get_subscription_url(
+                justvpn_user_id
+            )
+        )
+
+        if not subscription_url:
+            return None
+
+        response = httpx.get(
+            subscription_url,
+            headers={
+                "User-Agent": "SFA/1.12.0",
+                "x-hwid": hwid,
+                "x-device-os": device_os,
+                "x-device-model": device_model,
+                "Accept": "application/json",
+            },
+            timeout=20.0,
+        )
+
+        response.raise_for_status()
+
+        config = response.text.strip()
+
+        if not config:
+            return None
+
+        return config
 
     # ==========================================================
     # BANDWIDTH

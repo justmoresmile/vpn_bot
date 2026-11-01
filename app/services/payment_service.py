@@ -26,6 +26,7 @@ class PaymentService:
         self,
         user_id: int,
         amount_rubles: int,
+        payment_method: str = "sbp",
     ) -> Payment:
 
         if amount_rubles < 10:
@@ -51,6 +52,7 @@ class PaymentService:
                     f"Пополнение баланса JustVPN "
                     f"на {amount_rubles} руб."
                 ),
+                payment_method=payment_method,
             )
 
         except Exception as exc:

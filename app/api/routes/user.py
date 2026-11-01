@@ -90,6 +90,7 @@ async def my_subscriptions(
                 status=s.status.value,
                 expires_at=s.expires_at,
                 paid_until=s.paid_until,
+                bonus_until=s.bonus_until,
                 device_limit_locked_until=(
                     s.device_limit_locked_until
                 ),

@@ -48,3 +48,35 @@ button,
 input {
     font: inherit;
 }
+/* Hide number input arrows */
+.topup-amount-input::-webkit-outer-spin-button,
+.topup-amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.topup-amount-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+
+/* ===== Warning colors ===== */
+
+:root {
+    --warning: #b85c00;
+    --warning-strong: #8f4700;
+    --warning-bg: rgba(230, 126, 34, 0.12);
+    --warning-bg-strong: rgba(230, 126, 34, 0.18);
+    --warning-border: rgba(184, 92, 0, 0.30);
+    --warning-glow: rgba(230, 126, 34, 0.18);
+}
+
+:root[data-theme='dark'] {
+    --warning: #ffbd59;
+    --warning-strong: #ffd083;
+    --warning-bg: rgba(255, 178, 66, 0.13);
+    --warning-bg-strong: rgba(255, 178, 66, 0.20);
+    --warning-border: rgba(255, 178, 66, 0.28);
+    --warning-glow: rgba(255, 178, 66, 0.25);
+}

@@ -46,6 +46,11 @@ class BalanceTopupRequest(BaseModel):
         le=10000,
     )
 
+    payment_method: str = Field(
+        default="sbp",
+        pattern="^(sbp|bank_card)$",
+    )
+
 
 
 
@@ -155,6 +160,7 @@ async def create_balance_topup(
         payment = await payment_service.create_balance_topup(
             user_id=user.id,
             amount_rubles=request.amount,
+            payment_method=request.payment_method,
         )
 
     except ValueError as exc:

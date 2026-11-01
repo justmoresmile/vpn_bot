@@ -25,6 +25,7 @@ import EmailAuthScreen from './components/auth/EmailAuthScreen'
 import AuthChoiceScreen from './components/auth/AuthChoiceScreen'
 
 import BottomNavigation from './components/layout/BottomNavigation'
+import AdminScreen from './pages/admin/Admin'
 
 
 
@@ -86,6 +87,8 @@ type Tab =
   | 'support'
 
   | 'account'
+
+  | 'admin'
 
 
 
@@ -230,6 +233,8 @@ function App() {
       tab === 'support' ||
 
       tab === 'account' ||
+
+      tab === 'admin' ||
 
       tab === 'home'
 
@@ -714,47 +719,227 @@ const activeSubscription =
 
   useEffect(() => {
 
-
-
-    const startParam =
-
-      getTelegramStartParam()
-
-
-
-    const params =
-
-      new URLSearchParams(
-
-        window.location.search,
-
-      )
-
-
-
-    const paymentSuccess =
-
-      startParam === 'payment_success' ||
-
-      params.get('payment') === 'success'
-
-
-
-    if (!paymentSuccess) {
-
+    if (!user) {
       return
-
     }
 
 
+    const startParam =
+      getTelegramStartParam()
+
+
+    const params =
+      new URLSearchParams(
+        window.location.search,
+      )
+
+
+    const paymentSuccess =
+      startParam === 'payment_success' ||
+      params.get('payment') === 'success'
+
+
+    if (!paymentSuccess) {
+      return
+    }
+
 
     setActiveTab('subscription')
-
     setRenewOpen(false)
 
 
+    let cancelled = false
 
-  }, [])
+
+    const pollWalletAfterPayment =
+      async () => {
+
+        for (
+          let attempt = 0;
+          attempt < 15 && !cancelled;
+          attempt += 1
+        ) {
+
+          try {
+
+            const nextWallet =
+              await getWallet()
+
+            if (cancelled) {
+              return
+            }
+
+            setWallet(
+              nextWallet
+            )
+
+          } catch (error) {
+
+            console.error(
+              'Failed to refresh wallet after payment:',
+              error,
+            )
+
+          }
+
+
+          if (
+            attempt < 14 &&
+            !cancelled
+          ) {
+
+            await new Promise<void>(
+              (resolve) => {
+                window.setTimeout(
+                  resolve,
+                  2000,
+                )
+              },
+            )
+
+          }
+        }
+      }
+
+
+    void pollWalletAfterPayment()
+
+
+    return () => {
+      cancelled = true
+    }
+
+  }, [user])
+
+
+
+  useEffect(() => {
+
+    if (!user) {
+      return
+    }
+
+
+    let timers: number[] = []
+
+    let lastRefreshStartedAt = 0
+
+
+    const refreshWallet =
+      async () => {
+
+        try {
+
+          const nextWallet =
+            await getWallet()
+
+          setWallet(
+            nextWallet
+          )
+
+        } catch (error) {
+
+          console.error(
+            'Failed to refresh wallet after app return:',
+            error,
+          )
+
+        }
+      }
+
+
+    const scheduleWalletRefresh =
+      () => {
+
+        if (
+          document.visibilityState !==
+          'visible'
+        ) {
+          return
+        }
+
+
+        const now =
+          Date.now()
+
+        if (
+          now - lastRefreshStartedAt <
+          1000
+        ) {
+          return
+        }
+
+        lastRefreshStartedAt =
+          now
+
+
+        timers.forEach(
+          (timer) =>
+            window.clearTimeout(
+              timer
+            ),
+        )
+
+        timers = []
+
+
+        void refreshWallet()
+
+
+        timers.push(
+          window.setTimeout(
+            () => {
+              void refreshWallet()
+            },
+            2000,
+          ),
+        )
+
+
+        timers.push(
+          window.setTimeout(
+            () => {
+              void refreshWallet()
+            },
+            5000,
+          ),
+        )
+      }
+
+
+    window.addEventListener(
+      'focus',
+      scheduleWalletRefresh,
+    )
+
+    document.addEventListener(
+      'visibilitychange',
+      scheduleWalletRefresh,
+    )
+
+
+    return () => {
+
+      window.removeEventListener(
+        'focus',
+        scheduleWalletRefresh,
+      )
+
+      document.removeEventListener(
+        'visibilitychange',
+        scheduleWalletRefresh,
+      )
+
+      timers.forEach(
+        (timer) =>
+          window.clearTimeout(
+            timer
+          ),
+      )
+
+    }
+
+  }, [user])
 
 
 
@@ -1278,6 +1463,7 @@ const activeSubscription =
 
 
               <HomeScreen
+                trial={trial}
 
                 daysLeft={daysLeft}
 
@@ -1286,7 +1472,6 @@ const activeSubscription =
                 usageTotal={subscriptionUsage.total}
 
                 subscriptionDevices={subscriptionDevices}
-                trial={trial}
                 wallet={wallet}
 
                 accountDataLoading={
@@ -1467,6 +1652,9 @@ const activeSubscription =
                     'home'
                   )
                 }
+                onNavigate={(tab) =>
+                  handleTabChange(tab)
+                }
               />
 
             )}
@@ -1479,6 +1667,13 @@ const activeSubscription =
                   supportTicketToOpen
                 }
               />
+
+            )}
+
+
+            {activeTab === 'admin' && user.is_admin && (
+
+              <AdminScreen />
 
             )}
 
@@ -1507,6 +1702,8 @@ const activeSubscription =
           activeTab={activeTab}
 
           onChange={handleTabChange}
+
+          showAdmin={user.is_admin}
 
         />
 

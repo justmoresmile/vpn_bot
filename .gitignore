@@ -79,3 +79,9 @@ Desktop.ini
 # Runtime data
 data/
 *.bak-*
+
+# Local patch backups
+*.bak
+*.bak_*
+*.bak.*
+*.before_*

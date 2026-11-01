@@ -209,6 +209,8 @@ def create_tables():
 
             paid_until INTEGER,
 
+            bonus_until INTEGER,
+
             billing_day_index INTEGER NOT NULL DEFAULT 0,
 
             billing_enabled INTEGER NOT NULL DEFAULT 1,
@@ -257,10 +259,22 @@ def create_tables():
             ADD COLUMN paid_until INTEGER
         """)
 
+    if "bonus_until" not in subscription_columns:
+        db.execute("""
+            ALTER TABLE subscriptions
+            ADD COLUMN bonus_until INTEGER
+        """)
+
     if "billing_day_index" not in subscription_columns:
         db.execute("""
             ALTER TABLE subscriptions
             ADD COLUMN billing_day_index INTEGER NOT NULL DEFAULT 0
+        """)
+
+    if "bonus_device_limit" not in subscription_columns:
+        db.execute("""
+            ALTER TABLE subscriptions
+            ADD COLUMN bonus_device_limit INTEGER
         """)
 
     if "billing_enabled" not in subscription_columns:

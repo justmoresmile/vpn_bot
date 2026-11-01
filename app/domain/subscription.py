@@ -45,5 +45,10 @@ class Subscription:
     # Billing
     billing_mode: str = "fixed"
     paid_until: datetime | None = None
+
+    # Бесплатный период, выданный администратором.
+    bonus_until: datetime | None = None
+    bonus_device_limit: int | None = None
+
     billing_day_index: int = 0
     billing_enabled: bool = True

@@ -4265,3 +4265,575 @@ button {
   width: 23px;
   height: 23px;
 }
+
+
+/* =========================================================
+   INACTIVE SUBSCRIPTION
+   ========================================================= */
+
+@keyframes justvpnWarningPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 178, 66, 0.42);
+    transform: scale(1);
+  }
+
+  70% {
+    box-shadow: 0 0 0 9px rgba(255, 178, 66, 0);
+    transform: scale(1.08);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 178, 66, 0);
+    transform: scale(1);
+  }
+}
+
+
+@keyframes justvpnWarningGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 rgba(255, 178, 66, 0);
+  }
+
+  50% {
+    box-shadow:
+      0 0 22px rgba(255, 178, 66, 0.24);
+  }
+}
+
+
+.status-dot-warning {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+
+  border-radius: 999px;
+
+  background: #ffb242;
+
+  animation:
+    justvpnWarningPulse
+    1.8s
+    ease-out
+    infinite;
+}
+
+
+.home-status-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding: 8px 12px;
+
+  max-width: 100%;
+
+  border-radius: 999px;
+
+  color: #ffc76d;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 178, 66, 0.18),
+      rgba(255, 137, 35, 0.09)
+    );
+
+  border:
+    1px solid
+    rgba(255, 178, 66, 0.25);
+
+  animation:
+    justvpnWarningGlow
+    2.4s
+    ease-in-out
+    infinite;
+}
+
+
+.subscription-inactive-card {
+  position: relative;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+    rgba(255, 178, 66, 0.22);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 178, 66, 0.11),
+      rgba(255, 137, 35, 0.035)
+    );
+
+  animation:
+    justvpnWarningGlow
+    2.6s
+    ease-in-out
+    infinite;
+}
+
+
+.subscription-inactive-content {
+  min-height: 120px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 14px;
+
+  padding: 22px 18px;
+
+  box-sizing: border-box;
+
+  text-align: center;
+}
+
+
+.subscription-inactive-icon {
+  width: 46px;
+  height: 46px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 16px;
+
+  color: #ffbd58;
+
+  background:
+    rgba(255, 178, 66, 0.13);
+
+  border:
+    1px solid
+    rgba(255, 178, 66, 0.20);
+
+  font-size: 22px;
+  font-weight: 900;
+
+  animation:
+    justvpnWarningGlow
+    2.2s
+    ease-in-out
+    infinite;
+}
+
+
+.subscription-inactive-text {
+  color: #ffc76d;
+
+  font-size: 16px;
+  font-weight: 750;
+
+  line-height: 1.45;
+}
+
+
+/* =========================================================
+   WARNING THEME FIX
+   ========================================================= */
+
+@keyframes justvpnWarningPulseTheme {
+  0% {
+    box-shadow:
+      0 0 0 0 var(--warning-glow);
+    transform: scale(1);
+  }
+
+  70% {
+    box-shadow:
+      0 0 0 9px transparent;
+    transform: scale(1.08);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 0 transparent;
+    transform: scale(1);
+  }
+}
+
+
+@keyframes justvpnWarningGlowTheme {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 transparent;
+  }
+
+  50% {
+    box-shadow:
+      0 0 20px var(--warning-glow);
+  }
+}
+
+
+.status-dot-warning {
+  width: 9px;
+  height: 9px;
+
+  flex: 0 0 9px;
+
+  border-radius: 999px;
+
+  background:
+    var(--warning);
+
+  animation:
+    justvpnWarningPulseTheme
+    1.8s
+    ease-out
+    infinite;
+}
+
+
+.home-status-warning {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  max-width: 100%;
+
+  padding: 8px 12px;
+
+  border-radius: 999px;
+
+  color:
+    var(--warning-strong);
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--warning-bg-strong),
+      var(--warning-bg)
+    );
+
+  border:
+    1px solid
+    var(--warning-border);
+
+  animation:
+    justvpnWarningGlowTheme
+    2.4s
+    ease-in-out
+    infinite;
+}
+
+
+.subscription-inactive-card {
+  position: relative;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+    var(--warning-border);
+
+  background:
+    linear-gradient(
+      145deg,
+      var(--warning-bg-strong),
+      var(--warning-bg)
+    );
+
+  animation:
+    justvpnWarningGlowTheme
+    2.6s
+    ease-in-out
+    infinite;
+}
+
+
+.subscription-inactive-icon {
+  width: 46px;
+  height: 46px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 16px;
+
+  color:
+    var(--warning-strong);
+
+  background:
+    var(--warning-bg-strong);
+
+  border:
+    1px solid
+    var(--warning-border);
+
+  font-size: 22px;
+  font-weight: 900;
+}
+
+
+.subscription-inactive-text {
+  color:
+    var(--warning-strong);
+
+  font-size: 16px;
+  font-weight: 750;
+
+  line-height: 1.45;
+}
+
+
+/* =========================================================
+   FINAL RED WARNING OVERRIDES
+   ========================================================= */
+
+@keyframes justvpnWarningPulseRed {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.38);
+  }
+
+  70% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes justvpnWarningGlowRed {
+  0%, 100% {
+    box-shadow: 0 0 0 rgba(239, 68, 68, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 24px rgba(239, 68, 68, 0.30);
+  }
+}
+
+.status-dot-warning {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 999px;
+  background: #ff4d4f;
+  animation: justvpnWarningPulseRed 1.8s ease-out infinite;
+}
+
+.home-status-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ff5c61 0%, #d32f2f 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  animation: justvpnWarningGlowRed 2.4s ease-in-out infinite;
+}
+
+.subscription-inactive-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  background: linear-gradient(
+    145deg,
+    rgba(239, 68, 68, 0.16),
+    rgba(127, 29, 29, 0.12)
+  );
+  animation: justvpnWarningGlowRed 2.6s ease-in-out infinite;
+}
+
+.subscription-inactive-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ff5c61 0%, #d32f2f 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.subscription-inactive-text {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+
+/* ===== Whole inactive VPN card ===== */
+
+.vpn-card-inactive {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(239, 68, 68, 0.20),
+      rgba(185, 28, 28, 0.14)
+    ) !important;
+
+  border:
+    1px solid rgba(239, 68, 68, 0.28) !important;
+
+  color:
+    var(--text) !important;
+
+  box-shadow:
+    0 8px 28px rgba(239, 68, 68, 0.10) !important;
+
+  animation:
+    justvpnWarningGlowRed
+    2.6s
+    ease-in-out
+    infinite;
+}
+
+:root[data-theme='dark'] .vpn-card-inactive {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(239, 68, 68, 0.22),
+      rgba(127, 29, 29, 0.18)
+    ) !important;
+
+  color: #ffffff !important;
+}
+
+
+/* ===== Home inactive content ===== */
+
+@keyframes homeInactiveIconPulse {
+  0% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 rgba(239, 68, 68, 0.32);
+  }
+
+  70% {
+    transform: scale(1.07);
+    box-shadow:
+      0 0 0 10px rgba(239, 68, 68, 0);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+
+@keyframes homeInactiveCardGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 8px 28px rgba(239, 68, 68, 0.08);
+  }
+
+  50% {
+    box-shadow:
+      0 8px 32px rgba(239, 68, 68, 0.22);
+  }
+}
+
+
+.vpn-card-inactive {
+  animation:
+    homeInactiveCardGlow
+    2.6s
+    ease-in-out
+    infinite !important;
+}
+
+
+.home-inactive-content {
+  width: 100%;
+  min-height: 96px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 14px;
+
+  text-align: left;
+}
+
+
+.home-inactive-icon {
+  width: 42px;
+  height: 42px;
+
+  flex: 0 0 42px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 14px;
+
+  color: #ffffff;
+
+  background:
+    linear-gradient(
+      135deg,
+      #ff5c61 0%,
+      #d32f2f 100%
+    );
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.14);
+
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+
+  animation:
+    homeInactiveIconPulse
+    1.8s
+    ease-out
+    infinite;
+}
+
+
+.home-inactive-text {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+
+  color: inherit;
+}
+
+.home-inactive-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.home-inactive-title {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.home-inactive-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.72;
+  line-height: 1.2;
+}

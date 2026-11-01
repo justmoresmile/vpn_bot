@@ -10,6 +10,7 @@ export type Subscription = {
     status: string
     expires_at: string
     paid_until: string | null
+    bonus_until: string | null
     device_limit_locked_until: string | null
     client_email: string | null
     server_name: string | null

@@ -21,12 +21,25 @@ class YooKassaClient:
         self,
         amount: float,
         description: str,
+        payment_method: str = "sbp",
     ):
+
+        if payment_method not in {
+            "sbp",
+            "bank_card",
+        }:
+            raise ValueError(
+                "Unsupported payment method"
+            )
+
         payment = Payment.create(
             {
                 "amount": {
                     "value": str(amount),
                     "currency": "RUB",
+                },
+                "payment_method_data": {
+                    "type": payment_method,
                 },
                 "confirmation": {
                     "type": "redirect",

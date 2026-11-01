@@ -181,6 +181,446 @@ class VPNService:
         return created
 
     # ============================================================
+    # ADMIN EXTEND FIXED SUBSCRIPTION
+    # ============================================================
+
+    async def admin_extend_subscription(
+        self,
+        subscription: Subscription,
+        days: int,
+    ) -> Subscription:
+
+        if days <= 0:
+            raise ValueError(
+                "days must be greater than 0"
+            )
+
+        if (
+            subscription.status
+            == SubscriptionStatus.DELETED
+        ):
+            raise ValueError(
+                "Подписка удалена"
+            )
+
+        if subscription.id is None:
+            raise ValueError(
+                "Subscription has no id"
+            )
+
+        now = datetime.now(
+            timezone.utc
+        )
+
+        # ========================================================
+        # BALANCE
+        #
+        # Для balance-подписки ручное продление является
+        # подарочным периодом.
+        #
+        # paid_until двигаем вперёд без списания денег.
+        # Пока paid_until > now, billing не списывает баланс.
+        # ========================================================
+
+        if subscription.billing_mode == "balance":
+
+            from app.repositories.wallet_repository import (
+                wallet_repo,
+            )
+
+            from app.services.billing_service import (
+                billing_service,
+            )
+
+            paid_until = (
+                subscription.paid_until
+                or now
+            )
+
+            if paid_until.tzinfo is None:
+                paid_until = (
+                    paid_until.replace(
+                        tzinfo=timezone.utc
+                    )
+                )
+
+            if paid_until < now:
+                base = now
+            else:
+                base = paid_until
+
+            new_paid_until = (
+                base
+                + timedelta(
+                    days=days
+                )
+            )
+
+            # Отдельно считаем только бонусное время.
+            bonus_until = (
+                subscription.bonus_until
+                or now
+            )
+
+            if bonus_until.tzinfo is None:
+                bonus_until = bonus_until.replace(
+                    tzinfo=timezone.utc
+                )
+
+            if bonus_until < now:
+                bonus_base = now
+            else:
+                bonus_base = bonus_until
+
+            new_bonus_until = (
+                bonus_base
+                + timedelta(
+                    days=days
+                )
+            )
+
+            balance_kopecks = int(
+                wallet_repo.get_balance(
+                    subscription.user_id
+                )
+                or 0
+            )
+
+            projected_expire_at = (
+                billing_service
+                .calculate_projected_expire_at(
+                    paid_until=new_paid_until,
+                    balance_kopecks=(
+                        balance_kopecks
+                    ),
+                    device_limit=int(
+                        subscription.device_limit
+                        or 1
+                    ),
+                )
+            )
+
+            # Сначала обновляем Remnawave.
+            remnawave_service.ensure_user(
+                justvpn_user_id=(
+                    subscription.user_id
+                ),
+                expire_at=(
+                    projected_expire_at
+                ),
+                hwid_device_limit=int(
+                    subscription.device_limit
+                    or 1
+                ),
+            )
+
+            remote = (
+                remnawave_service.get_user(
+                    subscription.user_id
+                )
+            )
+
+            remote_status = (
+                str(
+                    remote.get(
+                        "status",
+                        "",
+                    )
+                ).upper()
+                if remote
+                else ""
+            )
+
+            # Подарочный период должен дать доступ,
+            # даже если до этого пользователь был
+            # отключён из-за нулевого баланса.
+            if remote_status != "ACTIVE":
+                remnawave_service.enable_user(
+                    subscription.user_id
+                )
+
+            subscription.paid_until = (
+                new_paid_until
+            )
+
+            subscription.bonus_until = (
+                new_bonus_until
+            )
+
+            subscription.expires_at = (
+                projected_expire_at
+            )
+
+            subscription.status = (
+                SubscriptionStatus.ACTIVE
+            )
+
+            subscription_repo.update(
+                subscription
+            )
+
+            from app.database.database import db
+
+            db.execute(
+                """
+                UPDATE subscriptions
+                SET bonus_until = ?
+                WHERE id = ?
+                """,
+                (
+                    int(
+                        new_bonus_until.timestamp()
+                    ),
+                    subscription.id,
+                ),
+            )
+
+            logger.info(
+                "Admin gifted balance subscription "
+                "subscription={} user={} days={} "
+                "paid_until={} expires_at={}",
+                subscription.id,
+                subscription.user_id,
+                days,
+                new_paid_until,
+                projected_expire_at,
+            )
+
+            return subscription
+
+        # ========================================================
+        # FIXED
+        # ========================================================
+
+        current_expire = (
+            subscription.expires_at
+            or now
+        )
+
+        if current_expire.tzinfo is None:
+            current_expire = (
+                current_expire.replace(
+                    tzinfo=timezone.utc
+                )
+            )
+
+        if current_expire < now:
+            base = now
+        else:
+            base = current_expire
+
+        new_expire_at = (
+            base
+            + timedelta(
+                days=days
+            )
+        )
+
+        remnawave_service.renew_user(
+            justvpn_user_id=(
+                subscription.user_id
+            ),
+            days=days,
+        )
+
+        subscription.expires_at = (
+            new_expire_at
+        )
+
+        subscription.status = (
+            SubscriptionStatus.ACTIVE
+        )
+
+        subscription_repo.update(
+            subscription
+        )
+
+        logger.info(
+            "Admin extended fixed subscription "
+            "subscription={} user={} days={} "
+            "expires_at={}",
+            subscription.id,
+            subscription.user_id,
+            days,
+            new_expire_at,
+        )
+
+        return subscription
+
+
+    async def admin_set_subscription_until(
+        self,
+        subscription: Subscription,
+        target_at: datetime,
+    ) -> Subscription:
+
+        now = datetime.now(timezone.utc)
+
+        if target_at.tzinfo is None:
+            target_at = target_at.replace(
+                tzinfo=timezone.utc
+            )
+
+        if target_at <= now:
+            raise ValueError(
+                "Дата должна быть в будущем"
+            )
+
+        if (
+            subscription.status
+            == SubscriptionStatus.DELETED
+        ):
+            raise ValueError(
+                "Подписка удалена"
+            )
+
+        # BALANCE:
+        # target_at = бесплатный период до этой даты.
+        if subscription.billing_mode == "balance":
+
+            from app.repositories.wallet_repository import (
+                wallet_repo,
+            )
+            from app.services.billing_service import (
+                billing_service,
+            )
+
+            balance_kopecks = int(
+                wallet_repo.get_balance(
+                    subscription.user_id
+                )
+                or 0
+            )
+
+            projected_expire_at = (
+                billing_service
+                .calculate_projected_expire_at(
+                    paid_until=target_at,
+                    balance_kopecks=balance_kopecks,
+                    device_limit=int(
+                        subscription.device_limit
+                        or 1
+                    ),
+                )
+            )
+
+            remnawave_service.ensure_user(
+                justvpn_user_id=subscription.user_id,
+                expire_at=projected_expire_at,
+                hwid_device_limit=int(
+                    subscription.device_limit
+                    or 1
+                ),
+            )
+
+            remote = remnawave_service.get_user(
+                subscription.user_id
+            )
+
+            remote_status = (
+                str(
+                    remote.get("status", "")
+                ).upper()
+                if remote
+                else ""
+            )
+
+            if remote_status != "ACTIVE":
+                remnawave_service.enable_user(
+                    subscription.user_id
+                )
+
+            subscription.paid_until = target_at
+            subscription.bonus_until = target_at
+
+            subscription.expires_at = (
+                projected_expire_at
+            )
+            subscription.status = (
+                SubscriptionStatus.ACTIVE
+            )
+
+            subscription_repo.update(
+                subscription
+            )
+
+            from app.database.database import db
+
+            db.execute(
+                """
+                UPDATE subscriptions
+                SET bonus_until = ?
+                WHERE id = ?
+                """,
+                (
+                    int(
+                        target_at.timestamp()
+                    ),
+                    subscription.id,
+                ),
+            )
+
+            logger.info(
+                "Admin set balance gift until "
+                "subscription={} user={} "
+                "paid_until={} expires_at={}",
+                subscription.id,
+                subscription.user_id,
+                target_at,
+                projected_expire_at,
+            )
+
+            return subscription
+
+        # FIXED:
+        # target_at = реальная дата окончания.
+        remnawave_service.ensure_user(
+            justvpn_user_id=subscription.user_id,
+            expire_at=target_at,
+            hwid_device_limit=int(
+                subscription.device_limit
+                or 1
+            ),
+        )
+
+        remote = remnawave_service.get_user(
+            subscription.user_id
+        )
+
+        remote_status = (
+            str(
+                remote.get("status", "")
+            ).upper()
+            if remote
+            else ""
+        )
+
+        if remote_status != "ACTIVE":
+            remnawave_service.enable_user(
+                subscription.user_id
+            )
+
+        subscription.expires_at = target_at
+        subscription.status = (
+            SubscriptionStatus.ACTIVE
+        )
+
+        subscription_repo.update(
+            subscription
+        )
+
+        logger.info(
+            "Admin set fixed subscription until "
+            "subscription={} user={} expires_at={}",
+            subscription.id,
+            subscription.user_id,
+            target_at,
+        )
+
+        return subscription
+
+
+    # ============================================================
     # CREATE BALANCE SUBSCRIPTION
     # ============================================================
 
@@ -351,6 +791,72 @@ class VPNService:
             billing_service,
         )
 
+        # --------------------------------------------------------
+        # BONUS DEVICE LOCK
+        #
+        # Бонус выдаётся на количество устройств,
+        # которое было в момент выдачи.
+        #
+        # Уменьшение device_limit бонус не сжигает.
+        # Увеличение выше bonus_device_limit сжигает
+        # весь оставшийся бонус.
+        # --------------------------------------------------------
+
+        now_utc = datetime.now(
+            timezone.utc
+        )
+
+        bonus_until = (
+            subscription.bonus_until
+        )
+
+        if (
+            bonus_until is not None
+            and bonus_until.tzinfo is None
+        ):
+            bonus_until = bonus_until.replace(
+                tzinfo=timezone.utc
+            )
+
+        bonus_locked_limit = (
+            subscription.bonus_device_limit
+            or subscription.device_limit
+            or 1
+        )
+
+        bonus_must_burn = (
+            bonus_until is not None
+            and bonus_until > now_utc
+            and device_limit
+                > int(bonus_locked_limit)
+        )
+
+        if bonus_must_burn:
+            remaining_bonus_seconds = max(
+                0,
+                int(
+                    (
+                        bonus_until
+                        - now_utc
+                    ).total_seconds()
+                ),
+            )
+
+            if paid_until.tzinfo is None:
+                paid_until = paid_until.replace(
+                    tzinfo=timezone.utc
+                )
+
+            paid_until = (
+                paid_until
+                - timedelta(
+                    seconds=remaining_bonus_seconds
+                )
+            )
+
+            if paid_until < now_utc:
+                paid_until = now_utc
+
         balance_kopecks = int(
             wallet_repo.get_balance(
                 subscription.user_id
@@ -427,6 +933,13 @@ class VPNService:
             subscription.device_limit
         )
 
+        if bonus_must_burn:
+            subscription.paid_until = (
+                paid_until
+            )
+            subscription.bonus_until = None
+            subscription.bonus_device_limit = None
+
         subscription.device_limit = (
             device_limit
         )
@@ -434,8 +947,8 @@ class VPNService:
         # Блокируем следующую смену до текущего paid_until.
         # Если paid_until отсутствует, используем expires_at.
         subscription.device_limit_locked_until = (
-            subscription.paid_until
-            or subscription.expires_at
+            datetime.now(timezone.utc)
+            + timedelta(days=1)
         )
 
         subscription.expires_at = (
@@ -445,6 +958,23 @@ class VPNService:
         subscription_repo.update(
             subscription
         )
+
+        if bonus_must_burn:
+            from app.database.database import db
+
+            db.execute(
+                """
+                UPDATE subscriptions
+                SET
+                    bonus_until = NULL,
+                    bonus_device_limit = NULL
+                WHERE id = ?
+                """,
+                (
+                    subscription.id,
+                ),
+            )
+
 
         logger.info(
             "Subscription device limit changed "

@@ -17,13 +17,22 @@ type AccountPage =
     | 'appearance'
 
 
+type MainTab =
+    | 'home'
+    | 'subscription'
+    | 'balance'
+    | 'support'
+
+
 type SettingsProps = {
     onClose: () => void
+    onNavigate: (tab: MainTab) => void
 }
 
 
 function Settings({
     onClose,
+    onNavigate,
 }: SettingsProps) {
 
     const {
@@ -223,6 +232,90 @@ function hsvToHex(
                         overflow: 'hidden',
                     }}
                 >
+
+                    {[
+                        {
+                            id: 'home' as const,
+                            title: 'Главная',
+                            description: 'Обзор аккаунта',
+                        },
+                        {
+                            id: 'subscription' as const,
+                            title: 'Подписка',
+                            description: 'Подключение и устройства',
+                        },
+                        {
+                            id: 'balance' as const,
+                            title: 'Баланс',
+                            description: 'Пополнение и история',
+                        },
+                        {
+                            id: 'support' as const,
+                            title: 'Поддержка',
+                            description: 'Помощь и обращения',
+                        },
+                    ].map((item) => (
+
+                        <button
+                            key={item.id}
+                            type="button"
+                            onClick={() =>
+                                onNavigate(item.id)
+                            }
+                            style={{
+                                width: '100%',
+                                minHeight: 64,
+                                padding: '0 16px',
+                                border: 0,
+                                borderBottom:
+                                    '1px solid rgba(127,127,127,0.14)',
+                                background: 'transparent',
+                                color: 'inherit',
+                                display: 'flex',
+                                alignItems: 'center',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                            }}
+                        >
+
+                            <div
+                                style={{
+                                    flex: 1,
+                                    minWidth: 0,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        fontSize: 16,
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    {item.title}
+                                </div>
+
+                                <div
+                                    className="setting-description"
+                                    style={{
+                                        marginTop: 2,
+                                    }}
+                                >
+                                    {item.description}
+                                </div>
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 24,
+                                    opacity: 0.35,
+                                }}
+                            >
+                                ›
+                            </div>
+
+                        </button>
+
+                    ))}
+
 
                     <button
                         type="button"

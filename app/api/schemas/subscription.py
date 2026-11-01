@@ -30,6 +30,8 @@ class SubscriptionShortResponse(BaseModel):
 
     paid_until: datetime | None = None
 
+    bonus_until: datetime | None = None
+
     device_limit_locked_until: datetime | None = None
 
     client_email: str | None = None
